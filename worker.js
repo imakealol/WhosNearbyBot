@@ -155,13 +155,18 @@ export default {
       } catch (e) { return json({ error: e.message }, 500); }
     }
 
-    // POST /api/invoice
-    if (path === "/api/invoice" && request.method === "POST") {
+    // POST /api/invoice  (alias: /create-invoice, matches the frontend calls)
+    if ((path === "/api/invoice" || path === "/create-invoice") && request.method === "POST") {
       try {
-        const { tg_id, type, base_amount } = await request.json();
+        // Frontend sends { userId, type, bot }; accept both key styles.
+        const body = await request.json();
+        const tg_id = body.tg_id ?? body.userId;
+        const type = body.type;
         const cfg = ALLOWED_TYPES[type];
+        if (!tg_id) return json({ error: "Missing tg_id/userId" }, 400);
         if (!cfg) return json({ error: "Invalid type" }, 400);
-        const finalAmount = base_amount || cfg.amount;
+        // Server-side price only: never trust a client-supplied amount.
+        const finalAmount = cfg.amount;
         const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/createInvoiceLink`, {
           method: "POST",
           body: JSON.stringify({ title: cfg.title, description: cfg.description, payload: JSON.stringify({ tg_id, type, finalAmount }), provider_token: "", currency: "XTR", prices: [{ label: cfg.title, amount: finalAmount }] }),
