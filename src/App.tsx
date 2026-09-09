@@ -2,7 +2,7 @@
 // Covers: initialization, profile setup, grid/map views, filters, payments,
 // profile card, games menu, footer navigation.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
@@ -361,6 +361,8 @@ export default function App() {
   const [showStuffBubble, setShowStuffBubble] = useState<boolean>(false);
   const [hasFilterSub, setHasFilterSub] = useState<boolean>(false);
   const [filterSubUntil, setFilterSubUntil] = useState<number>(0);
+  const filterSubUntilRef = useRef<number>(0);
+  useEffect(() => { filterSubUntilRef.current = filterSubUntil; }, [filterSubUntil]);
   const wallet = useTonWallet();
   const [tonConnectUI] = useTonConnectUI();
   const isWalletConnected = !!wallet;
@@ -682,6 +684,22 @@ export default function App() {
     await fetchUsersData(location.lat, location.lng, currentUser.id, isAdmin);
   };
 
+  // Open a Telegram invoice with a graceful fallback if openInvoice is
+  // unavailable (desktop bug, older client): returns 'paid', 'failed', or 'unsupported'.
+  const startInvoice = (invoiceLink: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const w = window.Telegram?.WebApp;
+      if (w?.openInvoice) {
+        w.openInvoice(invoiceLink, (status: string) => resolve(status === 'paid' ? 'paid' : 'failed'));
+      } else if (typeof invoiceLink === 'string' && invoiceLink.startsWith('https://t.me/')) {
+        try { w?.openTelegramLink?.(invoiceLink) ?? window.open(invoiceLink, '_blank'); } catch { window.open(invoiceLink, '_blank'); }
+        resolve('unsupported'); // client UI can't observe the result; do NOT auto-apply perks
+      } else {
+        resolve('failed');
+      }
+    });
+  };
+
   const verifyFilterSubscription = async (): Promise<boolean> => {
     if (isAdmin || hasFilterSub) return true;
     const confirmed = window.confirm(t('filterSubPrompt'));
@@ -692,14 +710,12 @@ export default function App() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUser?.id, type: 'change_filter', bot: getActiveBotKey() }),
       });
+      if (!res.ok) { console.error('create-invoice failed:', res.status); alert(t('paymentCancelled')); return false; }
       const data = await res.json() as { invoiceLink?: string };
-      if (data.invoiceLink && window.Telegram?.WebApp?.openInvoice) {
-        return new Promise((resolve) => {
-          window.Telegram!.WebApp!.openInvoice!(data.invoiceLink!, (status) => {
-            if (status === 'paid') { setHasFilterSub(true); const subUntil = Date.now() + 30 * 24 * 60 * 60 * 1000; setFilterSubUntil(subUntil); try { localStorage.setItem(FILTER_SUB_KEY, String(subUntil)); } catch {} if (currentUser && supabase) { const newExpiry = new Date(subUntil).toISOString(); supabase.from('profiles').update({ filter_sub_expiry: newExpiry }).eq('id', currentUser.id).then(() => {}); setCurrentUser((p: any) => p ? { ...p, filter_sub_expiry: newExpiry } : p); } resolve(true); }
-            else { alert(t('paymentCancelled')); resolve(false); }
-          });
-        });
+      if (data.invoiceLink) {
+        const status = await startInvoice(data.invoiceLink);
+        if (status === 'paid') { setHasFilterSub(true); const subUntil = Date.now() + 30 * 24 * 60 * 60 * 1000; setFilterSubUntil(subUntil); filterSubUntilRef.current = subUntil; try { localStorage.setItem(FILTER_SUB_KEY, String(subUntil)); } catch {} if (currentUser && supabase) { const newExpiry = new Date(subUntil).toISOString(); supabase.from('profiles').update({ filter_sub_expiry: newExpiry }).eq('id', currentUser.id).then(() => {}); setCurrentUser((p: any) => p ? { ...p, filter_sub_expiry: newExpiry } : p); } }
+        else { if (status !== 'unsupported') alert(t('paymentCancelled')); return false; }
       }
     } catch (err) { console.error('Invoice error:', err); }
     return false;
@@ -711,11 +727,18 @@ export default function App() {
   const loadFilterPrefs = () => {
     try {
       const subRaw = localStorage.getItem(FILTER_SUB_KEY);
-      if (subRaw) { const subUntil = Number(subRaw); if (!isNaN(subUntil)) setFilterSubUntil(subUntil); }
+      let subUntil = filterSubUntilRef.current;
+      if (subRaw) { const n = Number(subRaw); if (!isNaN(n)) subUntil = n; }
+      // Drop expired cached subscriptions so stale localStorage can't grant access.
+      if (subUntil && subUntil <= Date.now()) {
+        subUntil = 0;
+        try { localStorage.removeItem(FILTER_SUB_KEY); } catch {}
+      }
+      setFilterSubUntil(subUntil); filterSubUntilRef.current = subUntil;
       const raw = localStorage.getItem(FILTER_PREFS_KEY);
       if (!raw) { setFilterAgeOn(false); setFilterHeightOn(false); setFilterPrefMatcherOn(true); return; }
       const saved = JSON.parse(raw);
-      const hasSub = isAdmin || (filterSubUntil > Date.now());
+      const hasSub = isAdmin || (subUntil > Date.now());
       if (!hasSub) { setFilterAgeOn(false); setFilterHeightOn(false); setFilterPrefMatcherOn(true); return; }
       setFilterAgeOn(!!saved.ageOn);
       if (typeof saved.ageMin === 'number') setFilterAgeMin(saved.ageMin);
@@ -734,7 +757,7 @@ export default function App() {
 
   const persistFilterPrefs = (next: any) => {
     try {
-      const hasSub = isAdmin || (filterSubUntil > Date.now());
+      const hasSub = isAdmin || (filterSubUntilRef.current > Date.now());
       if (!hasSub) return;
       const saved = { ageOn: next.ageOn !== undefined ? next.ageOn : filterAgeOn, ageMin: next.ageMin !== undefined ? next.ageMin : filterAgeMin, ageMax: next.ageMax !== undefined ? next.ageMax : filterAgeMax, heightOn: next.heightOn !== undefined ? next.heightOn : filterHeightOn, heightMin: next.heightMin !== undefined ? next.heightMin : filterHeightMin, heightMax: next.heightMax !== undefined ? next.heightMax : filterHeightMax, prefMatcherOn: next.prefMatcherOn !== undefined ? next.prefMatcherOn : filterPrefMatcherOn, roleVal: next.roleVal !== undefined ? next.roleVal : filterRoleVal, safetyVal: next.safetyVal !== undefined ? next.safetyVal : filterSafetyVal, playstyleVal: next.playstyleVal !== undefined ? next.playstyleVal : filterPlaystyleVal, howManyVal: next.howManyVal !== undefined ? next.howManyVal : filterHowManyVal, whereVal: next.whereVal !== undefined ? next.whereVal : filterWhereVal };
       localStorage.setItem(FILTER_PREFS_KEY, JSON.stringify(saved));
@@ -757,21 +780,25 @@ export default function App() {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: currentUser.id, type: 'invisible', bot: getActiveBotKey() }),
           });
+          if (!res.ok) { console.error('create-invoice failed:', res.status); alert(t('paymentCancelled')); return; }
           const data = await res.json() as { invoiceLink?: string };
-          if (data.invoiceLink && window.Telegram?.WebApp?.openInvoice) {
-            window.Telegram.WebApp.openInvoice(data.invoiceLink, async (status) => {
-              if (status === 'paid') {
-                const expiryDate = new Date(); expiryDate.setDate(expiryDate.getDate() + 30);
-                newInvisibleExpiry = expiryDate.toISOString(); setInvisibleExpiry(newInvisibleExpiry);
-                setGridVisible(false); const updated = { ...currentUser, grid_visible: false, invisible_expiry: newInvisibleExpiry };
-                setCurrentUser(updated); await supabase.from('profiles').upsert([updated], { onConflict: 'id' });
-                setView('grid');
-                if (currentUser.lat && currentUser.lng) await fetchUsersData(currentUser.lat, currentUser.lng, currentUser.id, isAdmin);
-              } else { alert(t('paymentCancelled')); }
-            }); return;
+          if (data.invoiceLink) {
+            const status = await startInvoice(data.invoiceLink);
+            if (status === 'paid') {
+              const expiryDate = new Date(); expiryDate.setDate(expiryDate.getDate() + 30);
+              newInvisibleExpiry = expiryDate.toISOString(); setInvisibleExpiry(newInvisibleExpiry);
+              setGridVisible(false); const updated = { ...currentUser, grid_visible: false, invisible_expiry: newInvisibleExpiry };
+              setCurrentUser(updated); await supabase.from('profiles').upsert([updated], { onConflict: 'id' });
+              setView('grid');
+              if (currentUser.lat && currentUser.lng) await fetchUsersData(currentUser.lat, currentUser.lng, currentUser.id, isAdmin);
+            } else if (status !== 'unsupported') { alert(t('paymentCancelled')); }
+            return;
           }
         } catch (err) { console.error('Invisible invoice error:', err); }
       }
+    } else if (nextVal) {
+      // Turning invisible OFF: clear the expiry so it can't linger as "active".
+      newInvisibleExpiry = null; setInvisibleExpiry(null);
     }
     setGridVisible(nextVal); const updated = { ...currentUser, grid_visible: nextVal, invisible_expiry: newInvisibleExpiry };
     setCurrentUser(updated); await supabase.from('profiles').upsert([updated], { onConflict: 'id' });
@@ -807,15 +834,16 @@ export default function App() {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: currentUser.id, type: 'hide_age', bot: getActiveBotKey() }),
           });
+          if (!res.ok) { console.error('create-invoice failed:', res.status); alert(t('paymentCancelled')); return; }
           const data = await res.json() as { invoiceLink?: string };
-          if (data.invoiceLink && window.Telegram?.WebApp?.openInvoice) {
-            window.Telegram.WebApp.openInvoice(data.invoiceLink, async (status) => {
-              if (status === 'paid') {
-                const expiryDate = new Date(); expiryDate.setDate(expiryDate.getDate() + 30);
-                newExpiry = expiryDate.toISOString(); setHideAgeExpiry(newExpiry); setHideAge(true);
-                await handleUpdateSelfField({ hide_age: true, hide_age_expiry: newExpiry });
-              } else { alert(t('paymentCancelled')); }
-            }); return;
+          if (data.invoiceLink) {
+            const status = await startInvoice(data.invoiceLink);
+            if (status === 'paid') {
+              const expiryDate = new Date(); expiryDate.setDate(expiryDate.getDate() + 30);
+              newExpiry = expiryDate.toISOString(); setHideAgeExpiry(newExpiry); setHideAge(true);
+              await handleUpdateSelfField({ hide_age: true, hide_age_expiry: newExpiry });
+            } else if (status !== 'unsupported') { alert(t('paymentCancelled')); }
+            return;
           }
         } catch (err) { console.error('Hide age invoice error:', err); }
       }
