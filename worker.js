@@ -1,11 +1,10 @@
-// WhosNearbyBot — Canonical Cloudflare Worker (API-only, < 1MB)
-// Static assets are served by Cloudflare Pages / KV Asset Binding.
-// Supabase is the backend database.
-//
-// Secrets (wrangler secret put / env vars):
-//   TELEGRAM_BOT_TOKEN     — bot token for @WhosNearbyBot
-//   SUPABASE_URL           — https://<ref>.supabase.co
-//   SUPABASE_ANON_KEY      — anon key for Supabase REST
+// WhosNearbyBot worker — API-only, RLS-hardened version.
+// Secrets (env): TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_ANON_KEY,
+//                SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_WEBHOOK_SECRET
+// TELEGRAM_WEBHOOK_SECRET set => /telegram-webhook requires the
+// X-Telegram-Bot-Api-Secret-Token header to match (setWebhook secret_token).
+// Writes go through the service-role key when bound (bypasses RLS);
+// anon key is read-only fallback. Migration 004 makes anon read-only.
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -22,11 +21,12 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-function sbHeaders(env) {
+function sbHeaders(env, write = false) {
+  const key = write && env.SUPABASE_SERVICE_ROLE_KEY ? env.SUPABASE_SERVICE_ROLE_KEY : env.SUPABASE_ANON_KEY;
   return {
     "Content-Type": "application/json",
-    "apikey": env.SUPABASE_ANON_KEY,
-    "Authorization": `Bearer ${env.SUPABASE_ANON_KEY}`,
+    "apikey": key,
+    "Authorization": `Bearer ${key}`,
   };
 }
 
@@ -39,7 +39,7 @@ async function sbGet(env, path) {
 async function sbPost(env, path, body) {
   const res = await fetch(`${env.SUPABASE_URL}/${path}`, {
     method: "POST",
-    headers: { ...sbHeaders(env), "Prefer": "return=representation" },
+    headers: { ...sbHeaders(env, true), "Prefer": "return=representation" },
     body: JSON.stringify(body),
   });
   if (!res.ok) return null;
@@ -49,7 +49,7 @@ async function sbPost(env, path, body) {
 async function sbPatch(env, path, body) {
   const res = await fetch(`${env.SUPABASE_URL}/${path}`, {
     method: "PATCH",
-    headers: { ...sbHeaders(env), "Prefer": "return=minimal" },
+    headers: { ...sbHeaders(env, true), "Prefer": "return=minimal" },
     body: JSON.stringify(body),
   });
   return res.ok;
@@ -201,17 +201,15 @@ export default {
       } catch (e) { return json({ error: e.message }, 500); }
     }
 
-    // POST /api/invoice  (alias: /create-invoice, matches the frontend calls)
+    // POST /api/invoice  (alias: /create-invoice)
     if ((path === "/api/invoice" || path === "/create-invoice") && request.method === "POST") {
       try {
-        // Frontend sends { userId, type, bot }; accept both key styles.
         const body = await request.json();
         const tg_id = body.tg_id ?? body.userId;
         const type = body.type;
         const cfg = ALLOWED_TYPES[type];
         if (!tg_id) return json({ error: "Missing tg_id/userId" }, 400);
         if (!cfg) return json({ error: "Invalid type" }, 400);
-        // Server-side price only: never trust a client-supplied amount.
         const finalAmount = cfg.amount;
         const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/createInvoiceLink`, {
           method: "POST",
@@ -245,7 +243,45 @@ export default {
         if (update.message?.successful_payment) {
           const payload = JSON.parse(update.message.successful_payment.invoice_payload);
           const expiry = new Date(Date.now() + 30 * 86400000).toISOString();
-          // Await transaction insert so replay attacks (duplicate charge IDs) are blocked.
+          const txResult = await sbPost(env, "rest/v1/transactions", {
+            user_id: payload.tg_id, type: payload.type, amount: payload.finalAmount, currency: "XTR",
+            provider_payment_charge_id: update.message.successful_payment.provider_payment_charge_id || null,
+            telegram_payment_charge_id: update.message.successful_payment.telegram_payment_charge_id || null,
+          });
+          if (!txResult) return new Response("Duplicate or invalid transaction", { status: 400 });
+          const profileId = `tg_${payload.tg_id}`;
+          if (payload.type === "hide_age") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { hide_age: true, hide_age_expiry: expiry });
+          else if (payload.type === "invisible") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { grid_visible: false, invisible_expiry: expiry });
+          else if (payload.type === "change_preference" || payload.type === "edit_profile") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { edit_profile_pass: true, edit_profile_expiry: expiry });
+          else if (payload.type === "change_filter") {
+            const existing = await sbGet(env, `rest/v1/profiles?select=filter_sub_expiry&id=eq.${encodeURIComponent(profileId)}`);
+            const prev = (Array.isArray(existing) ? existing[0] : existing)?.filter_sub_expiry;
+            const base = prev && new Date(prev).getTime() > Date.now() ? new Date(prev).getTime() : Date.now();
+            await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { filter_sub_expiry: new Date(base + 30 * 86400000).toISOString() });
+          }
+        }
+        return new Response("OK");
+      } catch { return new Response("OK"); }
+    }
+
+    // POST /telegram-webhook — bot updates, secret-token protected
+    if (path === "/telegram-webhook" && request.method === "POST") {
+      if (env.TELEGRAM_WEBHOOK_SECRET) {
+        const got = request.headers.get("x-telegram-bot-api-secret-token");
+        if (got !== env.TELEGRAM_WEBHOOK_SECRET) return new Response("Forbidden", { status: 403 });
+      }
+      try {
+        const update = await request.json();
+        if (update.pre_checkout_query) {
+          await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery`, {
+            method: "POST", body: JSON.stringify({ pre_checkout_query_id: update.pre_checkout_query.id, ok: true }),
+            headers: { "Content-Type": "application/json" },
+          });
+          return new Response("OK");
+        }
+        if (update.message?.successful_payment) {
+          const payload = JSON.parse(update.message.successful_payment.invoice_payload);
+          const expiry = new Date(Date.now() + 30 * 86400000).toISOString();
           const txResult = await sbPost(env, "rest/v1/transactions", {
             user_id: payload.tg_id, type: payload.type, amount: payload.finalAmount, currency: "XTR",
             provider_payment_charge_id: update.message.successful_payment.provider_payment_charge_id || null,
@@ -289,11 +325,6 @@ export default {
       return json(Array.isArray(state) ? state[0] : state || { prize_name: "Ultimate Bundle", tickets_sold: 0 });
     }
 
-    // Private notes are NOT stored in Supabase. They live only in the user's
-    // Telegram WebApp CloudStorage (per-user, device-independent, bot-scoped),
-    // keyed whos_nearby_private_note_<viewer>_<target>, 100 char max.
-    // Expiry is driven by the existing profiles.filter_sub_expiry column.
-
     // POST /api/reset-profile
     if (path === "/api/reset-profile" && request.method === "POST") {
       const { caller_id, target_id } = await request.json();
@@ -322,7 +353,7 @@ export default {
     }
 
     // GET /api/health
-    if (path === "/api/health" || path === "/health") return json({ ok: true, version: "monolithic-1.0" });
+    if (path === "/api/health" || path === "/health") return json({ ok: true, version: "rls-hardened-1.1" });
 
     return json({ error: "Not found" }, 404);
   },
