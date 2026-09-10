@@ -55,6 +55,42 @@ async function sbPatch(env, path, body) {
   return res.ok;
 }
 
+// ---- Auth helpers -----------------------------------------------------------
+
+// Verify Telegram's X-Telegram-Bot-Api-Secret-Token webhook header (constant-time).
+function timingSafeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+// Validate Telegram WebApp initData HMAC per
+// https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+async function verifyInitData(env, initData) {
+  if (!env.TELEGRAM_BOT_TOKEN) return false; // cannot validate without the token
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash) return false;
+  params.delete("hash");
+  params.delete("signature");
+  const dataCheckString = [...params.entries()]
+    .map(([k, v]) => `${k}=${v}`)
+    .sort()
+    .join("\n");
+  const enc = new TextEncoder();
+  const secretKey = await crypto.subtle.importKey(
+    "raw", enc.encode("WebAppData"), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const secret = await crypto.subtle.sign("HMAC", secretKey, enc.encode(env.TELEGRAM_BOT_TOKEN));
+  const signKey = await crypto.subtle.importKey(
+    "raw", secret, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", signKey, enc.encode(dataCheckString));
+  const hex = [...new Uint8Array(signature)].map(b => b.toString(16).padStart(2, "0")).join("");
+  return timingSafeEqual(hex, hash);
+}
+
 const ALLOWED_TYPES = {
   hide_age:          { title: 'Hide Age (30 Days)',        description: 'Hide your age on your profile for 30 days.',        amount: 1000 },
   invisible:         { title: 'Invisible Mode (30 Days)',  description: 'Browse and go invisible on the grid for 30 days.', amount: 3000 },
@@ -82,6 +118,8 @@ export default {
       try {
         const { initData } = await request.json();
         if (!initData) return json({ error: "Missing initData" }, 400);
+        // Reject forged initData: HMAC must validate against the bot token.
+        if (!(await verifyInitData(env, initData))) return json({ error: "Invalid initData signature" }, 401);
         const params = new URLSearchParams(initData);
         const userStr = params.get("user");
         if (!userStr) return json({ error: "No user data" }, 400);
@@ -108,7 +146,9 @@ export default {
         const result = (Array.isArray(users) ? users : [])
           .map(u => { const dist = haversineKm(lat, lng, u.lat, u.lng); let age = null; if (u.dob) { const b = new Date(u.dob); age = new Date().getFullYear() - b.getFullYear(); } return { ...u, distance_km: Math.round(dist * 10) / 10, age }; })
           .filter(u => u.distance_km <= radius / 1000)
-          .sort((a, b) => a.distance_km - b.distance_km);
+          .sort((a, b) => a.distance_km - b.distance_km)
+          // Never leak raw date of birth; only the derived age leaves the API.
+          .map(u => { const { dob, ...safe } = u; return { ...safe, dob: undefined }; });
         return json(result);
       } catch (e) { return json({ error: e.message }, 500); }
     }
@@ -128,8 +168,14 @@ export default {
     if (path === "/api/profile" && request.method === "POST") {
       try {
         const body = await request.json();
-        const { tg_id, dob, gender_identity, seeking_gender, lat, lng, name, username, avatar, height, weight, role_pref, safety_pref, playstyle_pref, where_pref, how_many_pref, hide_age, grid_visible, map_visible } = body;
+        const { tg_id, dob, gender_identity, seeking_gender, lat, lng, name, username, avatar, height, weight, role_pref, safety_pref, playstyle_pref, where_pref, how_many_pref, hide_age, grid_visible, map_visible, initData } = body;
         if (!tg_id) return json({ error: "Missing tg_id" }, 400);
+        // Profile writes are authenticated: client must send the initData it
+        // was launched with, and the tg_id inside it must match the write.
+        if (!(await verifyInitData(env, initData || ""))) return json({ error: "Unauthorized" }, 401);
+        const params = new URLSearchParams(initData);
+        const authUser = JSON.parse(params.get("user") || "{}");
+        if (`tg_${authUser.id}` !== `tg_${tg_id}`) return json({ error: "Forbidden" }, 403);
         const profileId = `tg_${tg_id}`;
         const updates = { last_seen: new Date().toISOString() };
         if (dob !== undefined) updates.dob = dob;
@@ -180,6 +226,11 @@ export default {
 
     // POST /api/webhook
     if (path === "/api/webhook" && request.method === "POST") {
+      // Telegram sends this secret token with every webhook call; reject anything else.
+      const secretHeader = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
+      if (!env.TELEGRAM_WEBHOOK_SECRET || !timingSafeEqual(secretHeader, env.TELEGRAM_WEBHOOK_SECRET)) {
+        return new Response("Forbidden", { status: 403 });
+      }
       try {
         const update = await request.json();
         if (update.pre_checkout_query) {
