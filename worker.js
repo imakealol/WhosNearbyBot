@@ -224,7 +224,9 @@ export default {
       } catch (e) { return json({ error: e.message }, 500); }
     }
 
-    // POST /api/webhook
+    // POST /api/webhook — verify Telegram's secret-token header first so
+    // forged updates can't grant paid entitlements. TELEGRAM_WEBHOOK_SECRET
+    // must match the secret_token passed to setWebhook.
     if (path === "/api/webhook" && request.method === "POST") {
       // Telegram sends this secret token with every webhook call; reject anything else.
       const secretHeader = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
@@ -232,6 +234,10 @@ export default {
         return new Response("Forbidden", { status: 403 });
       }
       try {
+        const expected = env.TELEGRAM_WEBHOOK_SECRET;
+        if (!expected) return json({ error: "Webhook secret not configured" }, 500);
+        const got = request.headers.get("X-Telegram-Bot-Api-Secret-Token");
+        if (!got || got !== expected) return new Response("Forbidden", { status: 403 });
         const update = await request.json();
         if (update.pre_checkout_query) {
           await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery`, {
