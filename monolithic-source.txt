@@ -7,7 +7,10 @@ Regenerated from live source. Map toggle: turning the map footer button off
 (green to red) hides the user's map pin from others and switches to the grid
 view; that behavior is intentional and unchanged.
 i18n: all UI strings via t() helper; 6 languages (en, zh-CN, zh-TW, ja, ko, ru),
-100 keys each — see Section 1b of blueprint.txt.
+~102 keys each — see Section 6b of blueprint.txt.
+Worker notes: /api/invoice accepts tg_id OR userId, price always server-side
+from ALLOWED_TYPES, legacy alias /create-invoice; admin endpoints
+/api/reset-profile and /api/reset-all-underage (caller_id must be 1231127407).
 
 
 ================================================================================
@@ -143,7 +146,8 @@ const translations: Record<LangKey, Record<string, string>> = {
     privateNote: 'Private note', notePlaceholder: 'Private note (100 chars max)',
     forceReset: 'Force reset', gamesApps: 'Games & Apps',
     selectedUser: 'Selected user: {n}', profileReset: 'Profile reset.', resetFailed: 'Reset failed.',
-    forceResetConfirm: 'Force reset profile of {n}?'
+    forceResetConfirm: 'Force reset profile of {n}?',
+    resetAllUnderage: 'Reset all underage', resetAllUnderageConfirm: 'Reset ALL underage profiles?'
   },
   'zh-CN': {
     loading: '正在加载应用...', locationRequired: '需要位置权限', locationMessage: '使用"附近"功能必须获得位置权限。请在浏览器或 Telegram 设置中启用位置访问并重新启动应用。', accessDenied: '拒绝访问', underageMessage: '本应用仅限成年人使用。由于年龄限制，该账户已被锁定。', completeProfile: '完善您的个人资料', profileWarning: '警告：此信息将来无法更改。此处填写的内容会影响您可以看到和互动的用户。', dob: '出生日期：', imA: '我是', seeking: '寻找', man: '男性', woman: '女性', nonBinary: '非二元性别', men: '男性', women: '女性', everyone: '所有人', height: '身高：', selectHeight: '选择身高', weight: '体重：', selectWeight: '选择体重', tapToChange: '点击更改您的偏好：', mode: '模式：', browsingOnly: '仅浏览', onlineOnly: '仅在线', meetUp: '约会中', saveProfile: '保存资料并继续', whosNearby: '附近的人', filter: '筛选', refresh: '刷新', grid: '网格', chat: '聊天', map: '地图', wallet: '钱包', filterUsers: '筛选用户', ageRange: '年龄范围', preferenceMatcher: '偏好匹配器', rolePreference: '角色偏好', safetyPreference: '安全偏好', playstylePreference: '游戏风格偏好', groupSize: '群组人数', applyFilters: '应用筛选', ageHidden: '年龄已隐藏', ageShown: '年龄已显示', expires: '到期时间：', sendMessage: '发送消息', unlockPreference: '更改资料与偏好', iGotStuff: '我有货', unlockPreferencePrompt: '更改个人资料与偏好需要支付 1000 Telegram Stars。是否继续支付？', invisiblePrompt: '隐身需要订阅 30 天，费用为 3000 Telegram Stars。是否继续支付？', hideAgePrompt: '隐藏年龄需要订阅 30 天，费用为 1000 Telegram Stars。是否继续支付？', filterSubPrompt: '自定义此筛选条件需要订阅。是否继续支付？', paymentCancelled: '支付已取消或失败。', errorSaving: '保存资料出错：', fillAll: '请填写所有必填问题以继续。',
@@ -180,7 +184,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     forceResetConfirm: '強制重置 {n} 的資料？'
   },
   'ja': {
-    loading: 'アプリを読み込んでいます...', locationRequired: '位置情報のアクセスが必要です', locationMessage: '位置情報の許可が必須です。', accessDenied: 'アクセスが拒否されました', underageMessage: 'このアプリは成人向けです。', completeProfile: 'プロフィールを完成させる', profileWarning: '警告：これは後から変更できません。', dob: '生年月日：', imA: '私は', seeking: '探しています：', man: '男性', woman: '女性', nonBinary: 'ノンバイナリー', men: '男性', women: '女性', everyone: 'すべての人', height: '身長：', selectHeight: '身長を選択', weight: '体重：', selectWeight: '体重を選択', tapToChange: 'タップして好みを変更：', mode: 'モード：', browsingOnly: '閲覧のみ', onlineOnly: 'オンラインのみ', meetUp: 'ミートアップ', saveProfile: 'プロフィールを保存して続ける', whosNearby: '近くの人', filter: 'フィルター', refresh: '更新', grid: 'グリッド', chat: 'チャット', map: 'マップ', wallet: 'ウォレット', filterUsers: 'ユーザーをフィルター', ageRange: '年齢層', preferenceMatcher: '好みマッチング', rolePreference: 'ロールの好み', safetyPreference: '安全の好み', playstylePreference: 'プレイスタイルの好み', groupSize: 'グループサイズ', applyFilters: 'フィルターを適用', ageHidden: '年齢非表示', ageShown: '年齢表示', expires: '有効期限：', sendMessage: 'メッセージを送る', unlockPreference: 'プロフィールと好みを変更', iGotStuff: '持ってるよ', unlockPreferencePrompt: 'プロフィールの変更には1000 Starsが必要です。', invisiblePrompt: '透明化には3000 Starsが必要です。', hideAgePrompt: '年齢非表示には1000 Starsが必要です。', filterSubPrompt: 'フィルターのカスタマイズにはサブスクリプションが必要です。', paymentCancelled: '支払いがキャンセルされました。', errorSaving: 'エラー：', fillAll: 'すべての必須項目を入力してください。',
+    loading: 'アプリを読み込んでいます...', locationRequired: '位置情報のアクセスが必要です', locationMessage: '位置情報の許可が必須です。ブラウザまたは Telegram の設定で位置情報を有効にし、アプリを再起動してください。', accessDenied: 'アクセスが拒否されました', underageMessage: 'このアプリは成人向けです。年齢制限により、このアカウントのアクセスはロックされました。', completeProfile: 'プロフィールを完成させる', profileWarning: '警告：これは後から変更できません。ここで入力した情報は、表示・交流できる相手に影響します。', dob: '生年月日：', imA: '私は', seeking: '探しています：', man: '男性', woman: '女性', nonBinary: 'ノンバイナリー', men: '男性', women: '女性', everyone: 'すべての人', height: '身長：', selectHeight: '身長を選択', weight: '体重：', selectWeight: '体重を選択', tapToChange: 'タップして好みを変更：', mode: 'モード：', browsingOnly: '閲覧のみ', onlineOnly: 'オンラインのみ', meetUp: 'ミートアップ', saveProfile: 'プロフィールを保存して続ける', whosNearby: '近くの人', filter: 'フィルター', refresh: '更新', grid: 'グリッド', chat: 'チャット', map: 'マップ', wallet: 'ウォレット', filterUsers: 'ユーザーをフィルター', ageRange: '年齢層', preferenceMatcher: '好みマッチング', rolePreference: 'ロールの好み', safetyPreference: '安全の好み', playstylePreference: 'プレイスタイルの好み', groupSize: 'グループサイズ', applyFilters: 'フィルターを適用', ageHidden: '年齢非表示', ageShown: '年齢表示', expires: '有効期限：', sendMessage: 'メッセージを送る', unlockPreference: 'プロフィールと好みを変更', iGotStuff: '持ってるよ', unlockPreferencePrompt: 'プロフィールの変更には1000 Starsが必要です。', invisiblePrompt: '透明化には3000 Starsが必要です。', hideAgePrompt: '年齢非表示には1000 Starsが必要です。', filterSubPrompt: 'フィルターのカスタマイズにはサブスクリプションが必要です。', paymentCancelled: '支払いがキャンセルされました。', errorSaving: 'エラー：', fillAll: 'すべての必須項目を入力してください。',
     'Versatile': 'リバ (Vers)', 'Top': 'タチ (Top)', 'Bottom': 'ネコ (Btm)', 'Side': 'サイド (Side)', 'VT': 'リバ/タチ (VT)', 'VB': 'リバ/ネコ (VB)',
     'Safe': 'ゴムあり (Safe)', 'Raw': '生/中出し (Raw)',
     'Clean': 'シラフ (Clean)', 'Party': 'ケミ (Party)', 'Party✓': 'Party✓',
@@ -197,7 +201,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     forceResetConfirm: '{n} のプロフィールを強制リセットしますか？'
   },
   'ko': {
-    loading: '앱 로딩 중...', locationRequired: '위치 접근 권한 필요', locationMessage: '위치 권한이 필수입니다.', accessDenied: '접근 거부됨', underageMessage: '이 앱은 성인 전용입니다.', completeProfile: '프로필 완성하기', profileWarning: '경고: 이는 나중에 변경할 수 없습니다.', dob: '생년월일:', imA: '나는', seeking: '찾는 대상:', man: '남성', woman: '여성', nonBinary: '논바이너리', men: '남성', women: '여성', everyone: '모두', height: '키:', selectHeight: '키 선택', weight: '체중:', selectWeight: '체중 선택', tapToChange: '탭하여 선호도 변경:', mode: '모드:', browsingOnly: '브라우징 전용', onlineOnly: '온라인 전용', meetUp: '만남', saveProfile: '프로필 저장 및 계속', whosNearby: '내 주변', filter: '필터', refresh: '새로고침', grid: '그리드', chat: '채팅', map: '지도', wallet: '지갑', filterUsers: '사용자 필터', ageRange: '연령대', preferenceMatcher: '취향 매칭', rolePreference: '포지션 선호', safetyPreference: '안전 선호', playstylePreference: '플레이스타일 선호', groupSize: '그룹 인원', applyFilters: '필터 적용', ageHidden: '나이 숨김', ageShown: '나이 표시', expires: '만료일:', sendMessage: '메시지 보내기', unlockPreference: '프로필 변경', iGotStuff: '나 있음', unlockPreferencePrompt: '프로필 변경 1000 Stars 결제?', invisiblePrompt: '숨김 모드 3000 Stars 결제?', hideAgePrompt: '나이 숨기기 1000 Stars 결제?', filterSubPrompt: '필터 변경 구독 필요.', paymentCancelled: '결제 취소됨.', errorSaving: '오류:', fillAll: '필수 항목을 입력해주세요.',
+    loading: '앱 로딩 중...', locationRequired: '위치 접근 권한 필요', locationMessage: '위치 권한이 필수입니다. 브라우저 또는 Telegram 설정에서 위치 접근을 허용하고 앱을 다시 시작하세요.', accessDenied: '접근 거부됨', underageMessage: '이 앱은 성인 전용입니다. 연령 제한으로 이 계정은 잠겼습니다.', completeProfile: '프로필 완성하기', profileWarning: '경고: 이는 나중에 변경할 수 없습니다. 여기 입력한 정보는 볼 수 있고 상호작용할 수 있는 상대에게 영향을 줍니다.', dob: '생년월일:', imA: '나는', seeking: '찾는 대상:', man: '남성', woman: '여성', nonBinary: '논바이너리', men: '남성', women: '여성', everyone: '모두', height: '키:', selectHeight: '키 선택', weight: '체중:', selectWeight: '체중 선택', tapToChange: '탭하여 선호도 변경:', mode: '모드:', browsingOnly: '브라우징 전용', onlineOnly: '온라인 전용', meetUp: '만남', saveProfile: '프로필 저장 및 계속', whosNearby: '내 주변', filter: '필터', refresh: '새로고침', grid: '그리드', chat: '채팅', map: '지도', wallet: '지갑', filterUsers: '사용자 필터', ageRange: '연령대', preferenceMatcher: '취향 매칭', rolePreference: '포지션 선호', safetyPreference: '안전 선호', playstylePreference: '플레이스타일 선호', groupSize: '그룹 인원', applyFilters: '필터 적용', ageHidden: '나이 숨김', ageShown: '나이 표시', expires: '만료일:', sendMessage: '메시지 보내기', unlockPreference: '프로필 변경', iGotStuff: '나 있음', unlockPreferencePrompt: '프로필 변경 1000 Stars 결제?', invisiblePrompt: '숨김 모드 3000 Stars 결제?', hideAgePrompt: '나이 숨기기 1000 Stars 결제?', filterSubPrompt: '필터 변경 구독 필요.', paymentCancelled: '결제 취소됨.', errorSaving: '오류:', fillAll: '필수 항목을 입력해주세요.',
     'Versatile': '올 (Vers)', 'Top': '탑 (Top)', 'Bottom': '바텀 (Btm)', 'Side': '사이드 (Side)', 'VT': '버스/탑 (VT)', 'VB': '버스/바텀 (VB)',
     'Safe': '안전/콘돔 (Safe)', 'Raw': '노콘 (Raw)',
     'Clean': '노약 (Clean)', 'Party': '파티/약 (Party)', 'Party✓': 'Party✓',
@@ -214,7 +218,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     forceResetConfirm: '{n} 님의 프로필을 강제 초기화할까요?'
   },
   'ru': {
-    loading: 'Загрузка...', locationRequired: 'Требуется геолокация', locationMessage: 'Разрешение обязательно.', accessDenied: 'Доступ запрещен', underageMessage: 'Только для взрослых.', completeProfile: 'Заполните профиль', profileWarning: 'Предупреждение: это нельзя изменить.', dob: 'Дата рождения:', imA: 'Я', seeking: 'ищу', man: 'мужчину', woman: 'женщину', nonBinary: 'небинарную', men: 'мужчин', women: 'женщин', everyone: 'всех', height: 'Рост:', selectHeight: 'Выберите рост', weight: 'Вес:', selectWeight: 'Выберите вес', tapToChange: 'нажмите, чтобы изменить:', mode: 'Режим:', browsingOnly: 'Только просмотр', onlineOnly: 'Только онлайн', meetUp: 'Встреча', saveProfile: 'Сохранить', whosNearby: 'Рядом', filter: 'Фильтр', refresh: 'Обновить', grid: 'Сетка', chat: 'Чат', map: 'Карта', wallet: 'Кошелек', filterUsers: 'Фильтры', ageRange: 'Возраст', preferenceMatcher: 'Подбор по предпочтениям', rolePreference: 'Роль', safetyPreference: 'Безопасность', playstylePreference: 'Стиль', groupSize: 'Размер группы', applyFilters: 'Применить', ageHidden: 'Возраст скрыт', ageShown: 'Возраст виден', expires: 'Истекает:', sendMessage: 'Сообщение', unlockPreference: 'Изменить профиль', iGotStuff: 'У меня есть стафф', unlockPreferencePrompt: 'Изменить профиль за 1000 Stars?', invisiblePrompt: 'Невидимка за 3000 Stars?', hideAgePrompt: 'Скрыть возраст за 1000 Stars?', filterSubPrompt: 'Требуется подписка на фильтры.', paymentCancelled: 'Оплата отменена.', errorSaving: 'Ошибка:', fillAll: 'Заполните все поля.',
+    loading: 'Загрузка...', locationRequired: 'Требуется геолокация', locationMessage: 'Разрешение на геолокацию обязательно. Включите доступ к местоположению в браузере или настройках Telegram и перезапустите приложение.', accessDenied: 'Доступ запрещен', underageMessage: 'Приложение только для взрослых. Доступ к этому аккаунту заблокирован из-за возрастных ограничений.', completeProfile: 'Заполните профиль', profileWarning: 'Предупреждение: это нельзя изменить. Введённые здесь данные влияют на то, кого вы видите и с кем взаимодействуете.', dob: 'Дата рождения:', imA: 'Я', seeking: 'ищу', man: 'мужчину', woman: 'женщину', nonBinary: 'небинарную', men: 'мужчин', women: 'женщин', everyone: 'всех', height: 'Рост:', selectHeight: 'Выберите рост', weight: 'Вес:', selectWeight: 'Выберите вес', tapToChange: 'нажмите, чтобы изменить:', mode: 'Режим:', browsingOnly: 'Только просмотр', onlineOnly: 'Только онлайн', meetUp: 'Встреча', saveProfile: 'Сохранить', whosNearby: 'Рядом', filter: 'Фильтр', refresh: 'Обновить', grid: 'Сетка', chat: 'Чат', map: 'Карта', wallet: 'Кошелек', filterUsers: 'Фильтры', ageRange: 'Возраст', preferenceMatcher: 'Подбор по предпочтениям', rolePreference: 'Роль', safetyPreference: 'Безопасность', playstylePreference: 'Стиль', groupSize: 'Размер группы', applyFilters: 'Применить', ageHidden: 'Возраст скрыт', ageShown: 'Возраст виден', expires: 'Истекает:', sendMessage: 'Сообщение', unlockPreference: 'Изменить профиль', iGotStuff: 'У меня есть стафф', unlockPreferencePrompt: 'Изменить профиль за 1000 Stars?', invisiblePrompt: 'Невидимка за 3000 Stars?', hideAgePrompt: 'Скрыть возраст за 1000 Stars?', filterSubPrompt: 'Требуется подписка на фильтры.', paymentCancelled: 'Оплата отменена.', errorSaving: 'Ошибка:', fillAll: 'Заполните все поля.',
     'Versatile': 'Универсал (Vers)', 'Top': 'Актив (Top)', 'Bottom': 'Пассив (Btm)', 'Side': 'Без пенетрации (Side)', 'VT': 'Универсал/Актив (VT)', 'VB': 'Универсал/Пассив (VB)',
     'Safe': 'С резинкой (Safe)', 'Raw': 'Без резинки (Raw)',
     'Clean': 'Без наркотиков (Clean)', 'Party': 'Химсекс (Party)', 'Party✓': 'Party✓',
@@ -507,13 +511,11 @@ export default function App() {
   };
 
   const heightOptions = [];
-  for (let i = 10; i <= 30; i++) {
-    const m = (i / 10).toFixed(1);
-    const cm = i * 10;
+  for (let cm = 100; cm <= 300; cm += 5) {
     const totalInches = Math.round(cm / 2.54);
     const ft = Math.floor(totalInches / 12);
     const inch = totalInches % 12;
-    heightOptions.push(`${m}m (${ft}ft ${inch}in)`);
+    heightOptions.push(`${cm}cm (${ft}ft ${inch}in)`);
   }
   const weightOptions = [];
   for (let kg = 35; kg <= 160; kg += 1) {
@@ -546,7 +548,7 @@ export default function App() {
     });
     if (!error && data && Array.isArray(data)) {
       const processed = data.map((u: any) => ({
-        id: u.id || 'unknown', name: u.name || 'User', username: u.username || '',
+        id: u.id || 'unknown', name: u.name || (u.username ? '@'+u.username : 'Anonymous'), username: u.username || '',
         avatar: u.avatar || '', lat: typeof u.lat === 'number' ? u.lat : lat,
         lng: typeof u.lng === 'number' ? u.lng : lng,
         last_seen: u.last_seen || new Date().toISOString(), gender: u.gender || null,
@@ -594,7 +596,7 @@ export default function App() {
         setIsAdmin(checkIsAdmin);
         const userId = tgUser?.id ? `tg_${tgUser.id}` : ('user_' + Math.random().toString(36).substring(2, 9));
         localStorage.setItem('whos_nearby_user_id', userId);
-        const userName = tgUser?.first_name || (tgUser?.id ? `User ${tgUser.id}` : 'Test User');
+        const userName = tgUser?.first_name || (tgUser?.id ? `User ${tgUser.id}` : 'Anonymous');
         const userAvatar = tgUser?.photo_url || '';
         if (!navigator.geolocation) { setIsLocationDenied(true); setIsReady(true); return; }
         // Try hard for a fix: high accuracy (WiFi hotspot triangulation can be
@@ -1056,6 +1058,18 @@ export default function App() {
     } catch (e) { console.error(e); alert(t('resetFailed')); }
   };
 
+  const handleResetAllUnderage = async () => {
+    if (!isAdmin || !PAYMENT_WORKER_URL) return;
+    if (!window.confirm(t('resetAllUnderageConfirm'))) return;
+    try {
+      await fetch(`${PAYMENT_WORKER_URL}/api/reset-all-underage`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caller_id: currentUser?.id ? Number(String(currentUser.id).replace(/^tg_/, '')) : null }),
+      });
+      alert(t('profileReset'));
+    } catch (e) { console.error(e); alert(t('resetFailed')); }
+  };
+
   const filterSubStatusInfo = (() => {
     if (!isAdmin && !hasFilterSub && !(filterSubUntil > Date.now())) return { label: t('unsubscribed'), color: '#888' };
     if (filterSubUntil > Date.now()) return { label: t('subscribedUntil').replace('{d}', new Date(filterSubUntil).toLocaleDateString()), color: '#4ade80' };
@@ -1257,6 +1271,9 @@ export default function App() {
                 <button type="button" onClick={(e) => { e.stopPropagation(); handleForceReset(); }} style={{ padding: '2px 8px', backgroundColor: '#7f1d1d', border: '1px solid #444', borderRadius: '6px', fontSize: '14px', cursor: 'pointer' }} title={t('forceReset')}>🔁</button>
               </div>
             )}
+            {isViewingSelf && isAdmin && (
+              <button type="button" onClick={(e) => { e.stopPropagation(); handleResetAllUnderage(); }} style={{ position: 'absolute', top: '14px', left: '14px', zIndex: 5, padding: '2px 8px', backgroundColor: '#7f1d1d', border: '1px solid #444', borderRadius: '6px', fontSize: '12px', color: '#fff', cursor: 'pointer' }} title={t('resetAllUnderage')}>{t('resetAllUnderage')}</button>
+            )}
             <div style={{ width: '40px', height: '4px', backgroundColor: '#444', borderRadius: '2px', marginBottom: '16px' }} />
             <div style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ width: '90px', height: '90px', borderRadius: '50%', overflow: 'hidden', backgroundColor: '#222', border: '3px solid #007bff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px', filter: passesFilterForActive ? 'none' : 'grayscale(100%)' }}>
@@ -1264,7 +1281,7 @@ export default function App() {
               </div>
               <h2 style={{ fontSize: '20px', marginBottom: '6px', color: '#ffffff', fontWeight: 'bold' }}>{activeProfile.name}</h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', fontSize: '13px', color: '#ccc', marginBottom: '16px', alignItems: 'center' }}>
-                {!activeProfile.hide_age && calculateAge(activeProfile.dob) && <span>{calculateAge(activeProfile.dob)}yo</span>}
+                {!activeProfile.hide_age && calculateAge(activeProfile.dob) && <span>{calculateAge(activeProfile.dob)}</span>}
                 {getZodiacSignEmoji(activeProfile.dob)}<span>&bull;</span><span>{activeProfile.height}</span><span>&bull;</span><span>{activeProfile.weight}</span><span>&bull;</span><span>{isViewingSelf ? t('you') : `${formatDistanceBigUnit(activeProfile.distance)} ${t('away')}`}</span><span>&bull;</span><span style={{ color: '#4ade80' }}>{renderLastSeenBigUnit(formatLastSeenBigUnit(activeProfile.last_seen), t)}</span>
               </div>
               {isViewingSelf && (<div style={{ display: 'flex', width: '100%', justifyContent: 'center', marginBottom: '14px', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
@@ -1585,6 +1602,62 @@ const MintPage: React.FC = () => {
 export default MintPage
 
 ================================================================================
+SECTION 4b: src/pages/MapPage.tsx (map view, Leaflet)
+================================================================================
+
+import React, { useEffect, useRef } from 'react'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+
+// Fix Leaflet default icon paths
+delete (L.Icon.Default.prototype as any)._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+})
+
+const MapPage: React.FC = () => {
+  const mapRef = useRef<HTMLDivElement>(null)
+  const mapInstanceRef = useRef<L.Map | null>(null)
+
+  useEffect(() => {
+    if (mapRef.current && !mapInstanceRef.current) {
+      const map = L.map(mapRef.current).setView([22.3193, 114.1694], 12) // Hong Kong
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+      }).addTo(map)
+
+      mapInstanceRef.current = map
+
+      // Add some sample markers
+      L.marker([22.3193, 114.1694])
+        .addTo(map)
+        .bindPopup('<b>You are here</b>')
+
+      return () => {
+        map.remove()
+        mapInstanceRef.current = null
+      }
+    }
+  }, [])
+
+  return (
+    <div
+      ref={mapRef}
+      style={{
+        width: '100%',
+        height: '100%',
+        minHeight: 'calc(100vh - 60px)',
+      }}
+    />
+  )
+}
+
+export default MapPage
+
+================================================================================
 SECTION 5: src/index.css
 ================================================================================
 
@@ -1764,13 +1837,18 @@ export default {
       } catch (e) { return json({ error: e.message }, 500); }
     }
 
-    // POST /api/invoice
-    if (path === "/api/invoice" && request.method === "POST") {
+    // POST /api/invoice  (alias: /create-invoice, matches the frontend calls)
+    if ((path === "/api/invoice" || path === "/create-invoice") && request.method === "POST") {
       try {
-        const { tg_id, type, base_amount } = await request.json();
+        // Frontend sends { userId, type, bot }; accept both key styles.
+        const body = await request.json();
+        const tg_id = body.tg_id ?? body.userId;
+        const type = body.type;
         const cfg = ALLOWED_TYPES[type];
+        if (!tg_id) return json({ error: "Missing tg_id/userId" }, 400);
         if (!cfg) return json({ error: "Invalid type" }, 400);
-        const finalAmount = base_amount || cfg.amount;
+        // Server-side price only: never trust a client-supplied amount.
+        const finalAmount = cfg.amount;
         const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/createInvoiceLink`, {
           method: "POST",
           body: JSON.stringify({ title: cfg.title, description: cfg.description, payload: JSON.stringify({ tg_id, type, finalAmount }), provider_token: "", currency: "XTR", prices: [{ label: cfg.title, amount: finalAmount }] }),
@@ -1859,6 +1937,19 @@ export default {
       return json({ reset: true });
     }
 
+    // POST /api/reset-all-underage (admin only)
+    if (path === "/api/reset-all-underage" && request.method === "POST") {
+      const { caller_id } = await request.json();
+      if (caller_id !== 1231127407) return json({ error: "Forbidden" }, 403);
+      await sbPatch(env, "rest/v1/profiles?is_underage=eq.true", {
+        name: null, username: null, avatar: null, dob: null, height: null, weight: null,
+        gender: "Male", seeking: "Male", role_pref: null, safety_pref: null, playstyle_pref: null,
+        where_pref: null, how_many_pref: null, hide_age: false, grid_visible: true, map_visible: false,
+        is_underage: false, hide_age_expiry: null, invisible_expiry: null,
+      });
+      return json({ reset: true });
+    }
+
     // GET /api/health
     if (path === "/api/health" || path === "/health") return json({ ok: true, version: "monolithic-1.0" });
 
@@ -1868,13 +1959,12 @@ export default {
 
 ================================================================================
 SECTION 7: Database migrations (supabase/migrations, run in order)
-001_initial_schema.sql
-002_age_enforcement_and_nearby.sql
-003_private_notes_and_filter_sub.sql
 ================================================================================
 
 
---- 001_initial_schema.sql ---
+
+--- supabase/migrations/001_initial_schema.sql ---
+
 -- Who's Nearby — 001: initial schema
 -- Idempotent: safe to run on a fresh project or an existing one.
 
@@ -1956,7 +2046,8 @@ create policy "Allow public insert on transactions" on public.transactions for i
 notify pgrst, 'reload schema';
 
 
---- 002_age_enforcement_and_nearby.sql ---
+--- supabase/migrations/002_age_enforcement_and_nearby.sql ---
+
 -- Who's Nearby — 002: server-side age enforcement + nearby search (Haversine)
 -- Idempotent: uses create or replace / drop-if-exists everywhere.
 
@@ -2112,7 +2203,8 @@ $$;
 notify pgrst, 'reload schema';
 
 
---- 003_private_notes_and_filter_sub.sql ---
+--- supabase/migrations/003_private_notes_and_filter_sub.sql ---
+
 -- 003_private_notes_and_filter_sub.sql
 -- Adds private_notes column (admin-only private notes on profiles)
 -- and filter_sub_expiry (server-side filter subscription expiry).
@@ -2217,56 +2309,3 @@ VITE_PAYMENT_WORKER_URL=https://teleclaw-dispatch.silent-flower-a7c2.workers.dev
 # SUPABASE_ANON_KEY=your_key_here
 
 
---- /workspace/wnb/.github/workflows/deploy.yml ---
-name: Deploy to GitHub Pages
-
-on:
-  push:
-    branches: [main]
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_PAYMENT_WORKER_URL: ${{ secrets.VITE_PAYMENT_WORKER_URL }}
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4

@@ -10,7 +10,7 @@ A Telegram Mini App for finding nearby Telegram users (dating/hookup oriented,
 Monetized via Telegram Stars (XTR) in-app purchases.
 
 Repo layout (this directory):
-  src/App.tsx          — the entire main app (~1100 lines, monolithic component)
+  src/App.tsx          — the entire main app (~1300 lines, monolithic component)
   src/pages/MapPage.tsx — map view (Leaflet)
   src/pages/MintPage.tsx — NFT mint page (TON Connect) — legacy/alternate
                           monetization, NOT the main Stars flow
@@ -177,8 +177,12 @@ a profiles_service_all catch-all policy added in migration 003.
   GET  /api/profile    — query tg_id; returns profile row (404 if missing)
   POST /api/profile    — body {tg_id, ...optional fields}; partial update,
                          stamps last_seen
-  POST /api/invoice    — body {tg_id, type, base_amount?}; calls Telegram
-                         createInvoiceLink, returns {invoiceLink}
+  POST /api/invoice    — body {tg_id|userId, type, bot}; tg_id and userId are
+                         both accepted (alias key). Price is ALWAYS taken
+                         server-side from ALLOWED_TYPES — a client-supplied
+                         amount is ignored. Calls Telegram createInvoiceLink,
+                         returns {invoiceLink}. Legacy alias route
+                         /create-invoice also works (same handler).
   POST /api/webhook    — Telegram payments webhook: answers pre_checkout_query
                          ok; on successful_payment AWAIT inserts into
                          transactions (idempotent via charge ids). Duplicate/
@@ -193,6 +197,12 @@ a profiles_service_all catch-all policy added in migration 003.
   GET  /api/raffle     — raffle_state row
   POST /api/reset-profile — ADMIN-ONLY (caller_id must be 1231127407):
                          wipes {target_id}'s profile to defaults
+  POST /api/reset-all-underage — ADMIN-ONLY (caller_id must be 1231127407):
+                         wipes EVERY profile with is_underage=true back to
+                         defaults in one call (clears name/dob/height/weight/
+                         prefs, resets is_underage to false, grid_visible
+                         true, map_visible false). Button lives on the
+                         admin's own profile sheet ("Reset all underage").
   GET  /api/health, /health — {ok:true, version:'monolithic-1.0'}
 
 Purchasable types (ALLOWED_TYPES, all XTR/Stars):
@@ -221,8 +231,9 @@ names; the current canonical worker.js routes are /api/invoice and /api/webhook.
 A. Auth & onboarding
    - Telegram user auto-detection (id tg_<id>, name, username, photo);
      local UUID fallback outside Telegram.
-   - Initial setup sheet: dob (required), height picker (1.0m-3.0m),
-     weight picker (35-160kg), gender/seeking (locked in gaymode).
+   - Initial setup sheet: dob (required), height picker (100-300cm in 5cm
+     steps, shown as cm + ft/in), weight picker (35-160kg), gender/seeking
+     (locked in gaymode).
    - 18+ lockout: is_underage set server-side from dob; underage users are
      excluded from get_nearby_users entirely.
 
@@ -281,6 +292,8 @@ H. Refresh limiter
 
 I. Admin (owner id 1231127407, hardcoded)
    - Force Reset button on other users' profiles -> POST /api/reset-profile.
+   - "Reset all underage" button on the admin's own profile sheet ->
+     POST /api/reset-all-underage (mass-wipes every underage profile).
    - Bypasses filter subscription gating.
 
 J. Games & Apps side rail
@@ -338,5 +351,17 @@ GOTCHAS FOR THE NEXT PERSON
   - start_param ('gaymode') is client-side only; anyone can open the
     default entry and pick any gender.
   - Admin identity is a hardcoded Telegram id, not a secret.
+  - /api/invoice ignores any client-sent price — edit ALLOWED_TYPES in
+    worker.js to change pricing, never the frontend.
+  - i18n: every user-visible string goes through t(); when adding a UI
+    string add the key to ALL 6 languages (en, zh-CN, zh-TW, ja, ko, ru)
+    or it will render the raw key.
+  - Location permission is mandatory: the app tries high-accuracy GPS
+    (20s timeout), then low-accuracy (15s), then cached (any age) before
+    showing the "Location Access Required" screen. Default map centre is
+    Hong Kong (22.3193, 114.1694).
   - monolithic-source.txt is regenerated from the live source files; trust
-    the source files if they ever drift.
+    the source files if they ever drift. When in doubt regenerate it with
+    the same script pattern used before (concatenate App.tsx, MapPage.tsx,
+    MintPage.tsx, main.tsx, worker.js, migrations, configs in section
+    order).
