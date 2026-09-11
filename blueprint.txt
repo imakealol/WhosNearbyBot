@@ -36,7 +36,9 @@ A. Default entry — bot @WhosNearbyBot
 B. Men-only entry — bot @HKMO_D_Bot
    URL form: https://t.me/HKMO_D_Bot/app?startapp=gaymode
    start_param === 'gaymode' -> getActiveBotKey() returns 'botA' and
-   isHkModEntry is true. On first-time profile creation the app HARD-LOCKS
+   isHkModEntry is true. The URL query ?mode=gay ALSO activates gaymode
+   (fallback when start_param is unavailable, e.g. direct browser testing).
+   On first-time profile creation the app HARD-LOCKS
    gender='man', seeking='men'; the gender/seeking dropdown is disabled and
    preference tags (role/safety/playstyle/how-many/where) are only collected
    for man-seeking-man profiles (non-man profiles use non_man_mode instead).
@@ -279,6 +281,8 @@ E. Visibility controls
 F. Communication
    - Send Message button opens t.me/<username> (or user-id link) via the
      Telegram WebApp SDK; only shown if the target passes your filter.
+   - CHAT footer button opens the community chat: https://t.me/hkmochat in
+     BOTH modes (previously WhosNearby in the default entry).
 
 G. Private notes
    - Per-viewer notes on other profiles (100 chars), stored ONLY in
