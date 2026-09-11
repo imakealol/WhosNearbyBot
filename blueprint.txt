@@ -11,13 +11,17 @@ Monetized via Telegram Stars (XTR) in-app purchases.
 
 Repo layout (this directory):
   src/App.tsx          — the entire main app (~1300 lines, monolithic component)
-  src/pages/MapPage.tsx — map view (Leaflet)
-  src/pages/MintPage.tsx — NFT mint page (TON Connect) — legacy/alternate
-                          monetization, NOT the main Stars flow
+  src/pages/MapPage.tsx — DELETED as dead code (map is rendered inline in
+                          App.tsx via react-leaflet; this file was never
+                          imported). Remove from any rebuild checklist.
+  src/pages/MintPage.tsx — DELETED as dead code (NFT mint page, TON Connect —
+                          legacy monetization, NOT the main Stars flow; never
+                          imported). Remove from any rebuild checklist.
   src/main.tsx         — React entry
   worker.js            — canonical Cloudflare Worker (API-only, deployed as
                          "whosnearby-bot" per wrangler.toml)
-  supabase/migrations/ — 001, 002, 003 SQL migrations (run in order)
+  supabase/migrations/ — 001, 002, 003, 004_rls_hardening,
+                         004_webhook_secret SQL migrations (run in order)
   public/tonconnect-manifest.json — TON wallet connect manifest
   index.html           — Vite entry (loads Telegram Web App SDK)
   .env.example         — names of all env vars (placeholders only)
@@ -71,8 +75,18 @@ NEVER committed; wrangler.toml deliberately contains none):
                        answerPreCheckoutQuery)
   SUPABASE_URL       — Supabase project URL
   SUPABASE_ANON_KEY  — anon key for Supabase REST calls from the Worker
+  SUPABASE_SERVICE_ROLE_KEY — service-role key; used for Worker WRITES when
+                       present (since migration 004 the worker prefers it for
+                       write operations; falls back to anon if unset)
+  TELEGRAM_WEBHOOK_SECRET — secret_token passed to setWebhook; the worker
+                       rejects any /api/webhook POST whose
+                       X-Telegram-Bot-Api-Secret-Token header does not match
+                       (constant-time compare; 403 Forbidden otherwise)
 
-Deployment URL of the Worker: https://teleclaw-dispatch.silent-flower-a7c2.workers.dev/287f310dcfbf
+Deployment URL of the Worker: https://whosnearbybot.mileschan852.workers.dev
+(the old teleclaw-dispatch.silent-flower-a7c2.workers.dev/... path is DEAD —
+do not use it; it still lingers in .env.example and
+public/tonconnect-manifest.json and must be updated on any rebuild.)
 
 There is no server-side admin secret: admin status in the app is determined
 client-side (the owner's Telegram user id, 1231127407, is hardcoded in
@@ -126,9 +140,11 @@ Supabase SQL Editor. All are idempotent.
                        100 chars max, bot-scoped per user.
   updated_at         — timestamptz, touched by the enforce_age trigger
 
-RLS: enabled. Policies allow public select/insert/update on profiles (the
-anon key is public; age is enforced server-side via trigger, not RLS), plus
-a profiles_service_all catch-all policy added in migration 003.
+RLS: enabled. Since migration 004_rls_hardening the anon role is READ-ONLY on
+profiles (SELECT only); INSERT/UPDATE are no longer open to anon. Writes go
+through the Worker using SUPABASE_SERVICE_ROLE_KEY when set (the old
+profiles_service_all catch-all from migration 003 still exists but anon can
+no longer write directly). Age is enforced server-side via trigger, not RLS.
 
 --- TABLE: public.transactions (payment receipts; idempotency source) ---
   id                          — uuid PK
@@ -185,7 +201,11 @@ a profiles_service_all catch-all policy added in migration 003.
                          amount is ignored. Calls Telegram createInvoiceLink,
                          returns {invoiceLink}. Legacy alias route
                          /create-invoice also works (same handler).
-  POST /api/webhook    — Telegram payments webhook: answers pre_checkout_query
+  POST /api/webhook    — Telegram payments webhook. REQUIRES the
+                         X-Telegram-Bot-Api-Secret-Token header to equal the
+                         TELEGRAM_WEBHOOK_SECRET worker secret (the same value
+                         passed as secret_token to setWebhook); anything else
+                         gets 403 Forbidden. Then: answers pre_checkout_query
                          ok; on successful_payment AWAIT inserts into
                          transactions (idempotent via charge ids). Duplicate/
                          rejected inserts abort with HTTP 400 (replay-attack
@@ -346,12 +366,13 @@ L. Misc
   wrangler secret put TELEGRAM_BOT_TOKEN / SUPABASE_URL / SUPABASE_ANON_KEY.
 
 GOTCHAS FOR THE NEXT PERSON
-  - profiles has RLS with public read/write; the 18+ guarantee comes from
-    the trigger, not from permissions. Do not remove the trigger.
+  - profiles has RLS; since migration 004 anon is read-only (was public
+    read/write before). The 18+ guarantee comes from the trigger, not from
+    permissions. Do not remove the trigger.
   - flying_messages and raffle_state are not covered by any migration file.
-  - The Worker uses only the ANON key (no service key) — it cannot bypass
-    RLS; the profiles_service_all policy in migration 003 is what allows
-    its writes.
+  - The Worker historically used only the ANON key; since migration 004 it
+    prefers SUPABASE_SERVICE_ROLE_KEY for writes (falls back to anon, so set
+    the service key or writes will fail against hardened RLS).
   - start_param ('gaymode') is client-side only; anyone can open the
     default entry and pick any gender.
   - Admin identity is a hardcoded Telegram id, not a secret.
@@ -368,4 +389,76 @@ GOTCHAS FOR THE NEXT PERSON
     the source files if they ever drift. When in doubt regenerate it with
     the same script pattern used before (concatenate App.tsx, MapPage.tsx,
     MintPage.tsx, main.tsx, worker.js, migrations, configs in section
-    order).
+    order). NOTE: MapPage.tsx and MintPage.tsx are deleted dead code — the
+    dump now covers App.tsx, main.tsx, worker.js, migrations, configs.
+
+================================================================================
+8. HKMO_D_Bot ENTRY (botA) — CURRENT DEPLOYED STATE
+================================================================================
+  - Second bot: @HKMO_D_Bot (men-only entry, botA key). The main bot
+    @WhosNearbyBot remains botB (default entry).
+  - CHAT footer button ALWAYS links to https://t.me/hkmochat in BOTH modes
+    (botA and botB); it no longer switches per entry.
+  - ?mode=gay URL query param is a FALLBACK that activates gaymode/botA when
+    Telegram start_param is unavailable (e.g. direct browser testing).
+    Checked in getActiveBotKey() AND in the isHkModEntry determination.
+  - Deployed state: frontend on deployed Pages (GitHub Pages Actions deploy
+    configured as well), Worker at whosnearbybot.mileschan852.workers.dev
+    (worker version v16), webhook path /telegram-webhook/botA for
+    @HKMO_D_Bot (setWebhook with secret_token).
+  - Both bots share one Supabase DB and one Worker; botA traffic is
+    distinguished only client-side (start_param/mode=gay -> botA, gender lock).
+
+================================================================================
+9. SECURITY POSTURE
+================================================================================
+Hardened (done):
+  - RLS hardening (migration 004_rls_hardening): anon downgraded to read-only
+    on profiles; direct anon writes blocked.
+  - Webhook secret (migration 004_webhook_secret + worker): /api/webhook
+    requires matching X-Telegram-Bot-Api-Secret-Token header (constant-time
+    compare, 403 otherwise); setWebhook is called with secret_token.
+  - Replay-attack dedupe: transactions keyed by provider/telegram payment
+    charge ids (unique); duplicate/rejected inserts abort with HTTP 400.
+  - 18+ gate enforced server-side by the enforce_age trigger (clients cannot
+    forge is_underage).
+Still weak (known, unfixed):
+  - The Worker still falls back to the SUPABASE_ANON_KEY when
+    SUPABASE_SERVICE_ROLE_KEY is not set; without the service key, hardened
+    RLS blocks its writes — set the service key.
+  - Admin identity is a hardcoded client-side Telegram id (1231127407), not a
+    server-side secret; the /api/reset-profile guard is trivially spoofable.
+  - start_param / mode=gay is client-side only: anyone opening the default
+    entry can pick any gender; no server-side gaymode enforcement.
+  - CORS preflight allows all origins on the Worker.
+
+================================================================================
+10. ENV/SECRETS CHECKLIST FOR A REBUILD (names only)
+================================================================================
+GitHub Actions secrets (build-time, frontend):
+  VITE_SUPABASE_URL
+  VITE_SUPABASE_ANON_KEY
+  VITE_PAYMENT_WORKER_URL      — must be the CURRENT worker URL
+                                 (whosnearbybot.mileschan852.workers.dev)
+Worker secrets (wrangler secret put / Cloudflare dashboard):
+  TELEGRAM_BOT_TOKEN
+  TELEGRAM_WEBHOOK_SECRET      — same value as setWebhook secret_token
+  SUPABASE_URL
+  SUPABASE_ANON_KEY
+  SUPABASE_SERVICE_ROLE_KEY    — required for writes since migration 004
+Supabase: run migrations 001 -> 002 -> 003 -> 004_rls_hardening ->
+  004_webhook_secret, then hand-create public.flying_messages and
+  public.raffle_state (not covered by any migration).
+Telegram: setWebhook per bot with the matching secret_token; webhook path
+  for @HKMO_D_Bot is /telegram-webhook/botA.
+
+================================================================================
+11. OPEN ITEMS
+================================================================================
+  - Cloudflare Actions deploy is BLOCKED: the CLOUDFLARE_API_TOKEN secret is
+    bad/expired. Worker deploys currently work via local wrangler only.
+  - public/tonconnect-manifest.json (and dist copy) still points at the old
+    dead host teleclaw-dispatch.silent-flower-a7c2.workers.dev/f6710d69cb37;
+    must be repointed to the Pages/worker URL before TON Connect will work.
+  - .env.example's VITE_PAYMENT_WORKER_URL still shows the old dead URL too.
+  - flying_messages and raffle_state still lack migration files.
