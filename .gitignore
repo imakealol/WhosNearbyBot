@@ -6,3 +6,8 @@ whos-nearby
 .browser-profile
 chats
 assets
+dist/
+blueprint.txt
+monolithic-source.txt
+set_secret.cjs
+assets/
