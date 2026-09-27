@@ -111,14 +111,26 @@ Roles: admin, VIP, and the managed list (app_roles table):
     sessions and are shared across all clients.
   - VIP = all PAID functions unlocked indefinitely (hide age, invisible mode,
     filter subscription, profile editing, extra row). VIP does NOT grant admin
-    powers. The frontend exposes a `paidUnlocked = isAdmin || isVip` flag that
-    replaces the old admin-only checks on every paid gate.
+    powers. The frontend exposes a `paidUnlocked = isAdmin || isVip ||
+    globalVipActive` flag that replaces the old admin-only checks on every paid
+    gate.
+  - Global VIP (app_settings.global_vip_until, migration 007): an admin can
+    grant VIP to EVERY user for a selectable window (1 week / 1 month /
+    3 months / 6 months / 1 year). While the stored epoch-ms timestamp is in
+    the future, all clients treat globalVipActive as true and unlock every paid
+    function; it also shows as "VIP · Expires <date>" in the filter status.
+    Admins can revoke it (sets the value to 0).
   - Admin menu: a button appears at the TOP-LEFT of the admin's OWN profile
-    card only. It opens a pop menu of admin-only functions, currently the
-    Admin/VIP list manager. That modal lists all current admin/VIP users with
-    the owner (mileschan852) pinned as the first entry, greyed out and
-    unchangeable; other entries can be removed, and new ones added by username
-    with a chosen role.
+    card only. It opens a pop menu of admin-only functions:
+      1. Admin/VIP list manager — a modal listing all current admin/VIP users
+         with the owner (mileschan852) pinned as the first entry, greyed out and
+         unchangeable; other entries can be removed, and new ones added by
+         username with a chosen role.
+      2. Grant VIP to all — a submenu of period options (1w/1mo/3mo/6mo/1y) that
+         sets the global VIP window, plus a Revoke option when active.
+      3. Force reset all users — clears the required profile fields for every
+         row so the "complete your info" setup screen appears on each user's
+         next login.
   - Frontend gating is a client-side convenience only; it grants no server
     authority.
   - Worker (authoritative): admin-only endpoints verify the caller's Telegram
@@ -126,15 +138,17 @@ Roles: admin, VIP, and the managed list (app_roles table):
     username from the signed payload. isAdminCaller() accepts the ADMIN_ID
     constant (1231127407), the always-admin usernames, or a username stored as
     role=admin in app_roles. A client-supplied caller_id is never trusted.
-    /api/reset-profile requires ADMIN_ID; /api/roles (add/remove) requires
-    isAdminCaller and refuses to mutate the owner. Clearing the underage flag is
-    done per-profile through /api/reset-profile (there is no mass reset).
+    /api/reset-profile requires ADMIN_ID; /api/roles (add/remove),
+    /api/global-vip, and /api/reset-all require isAdminCaller; /api/roles
+    refuses to mutate the owner. Clearing the underage flag is done per-profile
+    through /api/reset-profile (there is no mass underage reset).
 
 ================================================================================
 4. DATABASE (Supabase PostgreSQL) — EVERY ITEM AND WHAT IT IS FOR
 ================================================================================
 Migrations in supabase/migrations/, run in order 001 -> 002 -> 003 ->
-004_rls_hardening -> 005_webhook_secret -> 006_app_roles in the Supabase SQL
+    004_rls_hardening -> 005_webhook_secret -> 006_app_roles -> 007_app_settings
+    in the Supabase SQL
 Editor. All are idempotent.
 
 --- TABLE: public.app_roles (managed admin/VIP list, migration 006) ---

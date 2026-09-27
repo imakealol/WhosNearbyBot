@@ -1,8 +1,10 @@
-WhosNearbyBot — Monolithic Source Dump
-Generated: 2026-09-27T09:30:44Z
-========================================
+MONOLITHIC SOURCE DUMP — generated 2026-09-27T09:36:46Z
+Repo: mileschan852/WhosNearbyBot
+================================================================================
 
-===== FILE: .env.example =====
+================================================================================
+FILE: .env.example
+================================================================================
 # Who's Nearby — environment variables (copy to .env and fill in)
 
 # Frontend (Vite) — set at build time (GitHub Actions secrets or .env)
@@ -15,8 +17,9 @@ VITE_PAYMENT_WORKER_URL=https://teleclaw-dispatch.silent-flower-a7c2.workers.dev
 # SUPABASE_URL=https://uslxmetypzqnuutbgbkl.supabase.co
 # SUPABASE_ANON_KEY=your_key_here
 
-
-===== FILE: .github/workflows/deploy.yml =====
+================================================================================
+FILE: .github/workflows/deploy.yml
+================================================================================
 name: Deploy to GitHub Pages
 
 on:
@@ -70,8 +73,9 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-
-===== FILE: .gitignore =====
+================================================================================
+FILE: .gitignore
+================================================================================
 node_modules
 dist
 .DS_Store
@@ -84,8 +88,9 @@ dist/
 set_secret.cjs
 assets/
 
-
-===== FILE: .oxlintrc.json =====
+================================================================================
+FILE: .oxlintrc.json
+================================================================================
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript", "oxc"],
@@ -95,8 +100,9 @@ assets/
   }
 }
 
-
-===== FILE: README.md =====
+================================================================================
+FILE: README.md
+================================================================================
 # WhosNearbyBot
 
 A Telegram Mini App for finding nearby Telegram users — React + TypeScript SPA with a Cloudflare Worker backend and Supabase (PostgreSQL).
@@ -167,8 +173,9 @@ npm run build    # Build for production
 
 Copy `.env.example` to `.env` and fill in the values before building.
 
-
-===== FILE: index.html =====
+================================================================================
+FILE: index.html
+================================================================================
 <!doctype html>
 <html lang="en">
   <head>
@@ -185,8 +192,9 @@ Copy `.env.example` to `.env` and fill in the values before building.
   </body>
 </html>
 
-
-===== FILE: package.json =====
+================================================================================
+FILE: package.json
+================================================================================
 {
   "name": "whos-nearby",
   "private": true,
@@ -221,8 +229,9 @@ Copy `.env.example` to `.env` and fill in the values before building.
   }
 }
 
-
-===== FILE: public/tonconnect-manifest.json =====
+================================================================================
+FILE: public/tonconnect-manifest.json
+================================================================================
 {
   "url": "https://teleclaw-dispatch.silent-flower-a7c2.workers.dev/f6710d69cb37",
   "name": "Who's Nearby",
@@ -231,8 +240,9 @@ Copy `.env.example` to `.env` and fill in the values before building.
   "privacyPolicyUrl": ""
 }
 
-
-===== FILE: set_supabase_secrets.cjs =====
+================================================================================
+FILE: set_supabase_secrets.cjs
+================================================================================
 // GitHub Actions secret update: VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
 const https = require("https");
 const sodium = require("/tmp/node_modules/libsodium-wrappers");
@@ -286,8 +296,9 @@ function api(path, data, method) {
   }
 })().catch((e) => { console.error(e.message); process.exit(1); });
 
-
-===== FILE: src/App.tsx =====
+================================================================================
+FILE: src/App.tsx
+================================================================================
 // App.tsx — Main React SPA component for Who's Nearby
 // Covers: initialization, profile setup, grid/map views, filters, payments,
 // profile card, games menu, footer navigation.
@@ -357,7 +368,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     forceReset: 'Force reset', gamesApps: 'Games & Apps', resetProfile: 'Reset Profile',
     selectedUser: 'Selected user: {n}', profileReset: 'Profile reset.', resetFailed: 'Reset failed.',
     forceResetConfirm: 'Force reset profile of {n}?',
-    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: 'Admin Menu', adminVipList: 'Admin / VIP List', owner: 'Owner', addRole: 'Add', removeRole: 'Remove', roleUsernamePlaceholder: 'username (without @)', roleUpdateFailed: 'Update failed.', ownerImmutable: 'The owner role cannot be changed.', noRolesYet: 'No admins or VIPs yet.', close: 'Close'
+    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: 'Admin Menu', adminVipList: 'Admin / VIP List', owner: 'Owner', addRole: 'Add', removeRole: 'Remove', roleUsernamePlaceholder: 'username (without @)', roleUpdateFailed: 'Update failed.', ownerImmutable: 'The owner role cannot be changed.', noRolesYet: 'No admins or VIPs yet.', close: 'Close', grantVipAll: 'Grant VIP to all', revokeVipAll: 'Revoke VIP for all', forceResetAll: 'Force reset all users', forceResetAllConfirm: 'Reset ALL users? Everyone will see the "complete your info" screen on next login.', resetAllDone: 'All users reset.', period_1w: '1 week', period_1mo: '1 month', period_3mo: '3 months', period_6mo: '6 months', period_1y: '1 year'
   },
   'zh-CN': {
     loading: '正在加载应用...', locationRequired: '需要位置权限', locationMessage: '使用"附近"功能必须获得位置权限。请在浏览器或 Telegram 设置中启用位置访问并重新启动应用。', accessDenied: '拒绝访问', underageMessage: '本应用仅限成年人使用。由于年龄限制，该账户已被锁定。', completeProfile: '完善您的个人资料', profileWarning: '警告：此信息将来无法更改。此处填写的内容会影响您可以看到和互动的用户。', dob: '出生日期：', imA: '我是', seeking: '寻找', man: '男性', woman: '女性', nonBinary: '非二元性别', men: '男性', women: '女性', everyone: '所有人', height: '身高：', selectHeight: '选择身高', weight: '体重：', selectWeight: '选择体重', tapToChange: '点击更改您的偏好：', mode: '模式：', browsingOnly: '仅浏览', onlineOnly: '仅在线', meetUp: '约会中', saveProfile: '保存资料并继续', whosNearby: '附近的人', filter: '筛选', refresh: '刷新', grid: '网格', chat: '聊天', map: '地图', wallet: '钱包', filterUsers: '筛选用户', ageRange: '年龄范围', preferenceMatcher: '偏好匹配器', rolePreference: '角色偏好', safetyPreference: '安全偏好', playstylePreference: '游戏风格偏好', groupSize: '群组人数', applyFilters: '应用筛选', ageHidden: '年龄已隐藏', ageShown: '年龄已显示', expires: '到期时间：', sendMessage: '发送消息', unlockPreference: '更改资料与偏好', iGotStuff: '我有货', unlockPreferencePrompt: '更改个人资料与偏好需要支付 1000 Telegram Stars。是否继续支付？', invisiblePrompt: '隐身需要订阅 30 天，费用为 3000 Telegram Stars。是否继续支付？', hideAgePrompt: '隐藏年龄需要订阅 30 天，费用为 1000 Telegram Stars。是否继续支付？', filterSubPrompt: '自定义此筛选条件需要订阅。是否继续支付？', paymentCancelled: '支付已取消或失败。', errorSaving: '保存资料出错：', fillAll: '请填写所有必填问题以继续。',
@@ -375,7 +386,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     forceReset: '强制重置', gamesApps: '游戏和应用',
     selectedUser: '��选中用户: {n}', profileReset: '资料已重置。', resetFailed: '重置失败。',
     forceResetConfirm: '强制重置 {n} 的资料？',
-    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: '管理菜单', adminVipList: '管理员 / VIP 列表', owner: '拥有者', addRole: '添加', removeRole: '移除', roleUsernamePlaceholder: '用户名（不含 @）', roleUpdateFailed: '更新失败。', ownerImmutable: '拥有者角色无法更改。', noRolesYet: '暂无管理员或 VIP。', close: '关闭'
+    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: '管理菜单', adminVipList: '管理员 / VIP 列表', owner: '拥有者', addRole: '添加', removeRole: '移除', roleUsernamePlaceholder: '用户名（不含 @）', roleUpdateFailed: '更新失败。', ownerImmutable: '拥有者角色无法更改。', noRolesYet: '暂无管理员或 VIP。', close: '关闭', grantVipAll: '为所有用户授予 VIP', revokeVipAll: '取消所有用户 VIP', forceResetAll: '强制重置所有用户', forceResetAllConfirm: '重置所有用户？所有人下次登录时都会看到"完善资料"页面。', resetAllDone: '所有用户已重置。', period_1w: '1 周', period_1mo: '1 个月', period_3mo: '3 个月', period_6mo: '6 个月', period_1y: '1 年'
   },
   'zh-TW': {
     loading: '正在載入應用程式...', locationRequired: '需要位置權限', locationMessage: '使用「附近」功能必須獲得位置權限。請在瀏覽器或 Telegram 設定中啟用位置存取並重新啟動應用程式。', accessDenied: '存取被拒', underageMessage: '本應用程式僅限成年人使用。由於年齡限制，該帳戶已被鎖定。', completeProfile: '完善您的個人資料', profileWarning: '警告：此資訊未來無法更改。此處填寫的內容會影響您可以看到和互動的使用者。', dob: '出生日期：', imA: '我是', seeking: '尋找', man: '男性', woman: '女性', nonBinary: '非二元性別', men: '男性', women: '女性', everyone: '所有人', height: '身高：', selectHeight: '選擇身高', weight: '體重：', selectWeight: '選擇體重', tapToChange: '點擊更改您的偏好：', mode: '模式：', browsingOnly: '僅瀏覽', onlineOnly: '僅線上', meetUp: '見面中', saveProfile: '儲存資料並繼續', whosNearby: '附近的人', filter: '篩選', refresh: '重新整理', grid: '網格', chat: '聊天', map: '地圖', wallet: '錢包', filterUsers: '篩選使用者', ageRange: '年齡範圍', preferenceMatcher: '偏好匹配器', rolePreference: '角色偏好', safetyPreference: '安全偏好', playstylePreference: '風格偏好', groupSize: '群組人數', applyFilters: '套用篩選', ageHidden: '年齡已隱藏', ageShown: '年齡已顯示', expires: '到期時間：', sendMessage: '傳送訊息', unlockPreference: '更改資料與偏好', iGotStuff: '我有貨', unlockPreferencePrompt: '更改個人資料與偏好需要支付 1000 Telegram Stars。是否繼續支付？', invisiblePrompt: '隱身需要訂閱 30 天，費用為 3000 Telegram Stars。是否繼續支付？', hideAgePrompt: '隱藏年齡需要訂閱 30 天，費用為 1000 Telegram Stars。是否繼續支付？', filterSubPrompt: '自訂此篩選條件需要訂閱。是否繼續支付？', paymentCancelled: '付款已取消或失敗。', errorSaving: '儲存資料出錯：', fillAll: '請填寫所有必填問題以繼續。',
@@ -393,14 +404,14 @@ const translations: Record<LangKey, Record<string, string>> = {
     forceReset: '強制重置', gamesApps: '遊戲和應用',
     selectedUser: '已選中用戶: {n}', profileReset: '資料已重置。', resetFailed: '重置失敗。',
     forceResetConfirm: '強制重置 {n} 的資料？',
-    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: '管理選單', adminVipList: '管理員 / VIP 列表', owner: '擁有者', addRole: '新增', removeRole: '移除', roleUsernamePlaceholder: '用戶名（不含 @）', roleUpdateFailed: '更新失敗。', ownerImmutable: '擁有者角色無法更改。', noRolesYet: '暫無管理員或 VIP。', close: '關閉'
+    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: '管理選單', adminVipList: '管理員 / VIP 列表', owner: '擁有者', addRole: '新增', removeRole: '移除', roleUsernamePlaceholder: '用戶名（不含 @）', roleUpdateFailed: '更新失敗。', ownerImmutable: '擁有者角色無法更改。', noRolesYet: '暫無管理員或 VIP。', close: '關閉', grantVipAll: '為所有用戶授予 VIP', revokeVipAll: '取消所有用戶 VIP', forceResetAll: '強制重置所有用戶', forceResetAllConfirm: '重置所有用戶？所有人下次登入時都會看到「完善資料」頁面。', resetAllDone: '所有用戶已重置。', period_1w: '1 週', period_1mo: '1 個月', period_3mo: '3 個月', period_6mo: '6 個月', period_1y: '1 年'
   },
   'ja': {
     loading: 'アプリを読み込んでいます...', locationRequired: '位置情報のアクセスが必要です', locationMessage: '位置情報の許可が必須です。ブラウザまたは Telegram の設定で位置情報を有効にし、アプリを再起動してください。', accessDenied: 'アクセスが拒否されました', underageMessage: 'このアプリは成人向けです。年齢制限により、このアカウントのアクセスはロックされました。', completeProfile: 'プロフィールを完成させる', profileWarning: '警告：これは後から変更できません。ここで入力した情報は、表示・交流できる相手に影響します。', dob: '生年月日：', imA: '私は', seeking: '探しています：', man: '男性', woman: '女性', nonBinary: 'ノンバイナリー', men: '男性', women: '女性', everyone: 'すべての人', height: '身長：', selectHeight: '身長を選択', weight: '体重：', selectWeight: '体重を選択', tapToChange: 'タップして好みを変更：', mode: 'モード：', browsingOnly: '閲覧のみ', onlineOnly: 'オンラインのみ', meetUp: 'ミートアップ', saveProfile: 'プロフィールを保存して続ける', whosNearby: '近くの人', filter: 'フィルター', refresh: '更新', grid: 'グリッド', chat: 'チャット', map: 'マップ', wallet: 'ウォレット', filterUsers: 'ユーザーをフィルター', ageRange: '年齢層', preferenceMatcher: '好みマッチング', rolePreference: 'ロールの好み', safetyPreference: '安全の好み', playstylePreference: 'プレイスタイルの好み', groupSize: 'グループサイズ', applyFilters: 'フィルターを適用', ageHidden: '年齢非表示', ageShown: '年齢表示', expires: '有効期限：', sendMessage: 'メッセージを送る', unlockPreference: 'プロフィールと好みを変更', iGotStuff: '持ってるよ', unlockPreferencePrompt: 'プロフィールの変更には1000 Starsが必要です。', invisiblePrompt: '透明化には3000 Starsが必要です。', hideAgePrompt: '年齢非表示には1000 Starsが必要です。', filterSubPrompt: 'フィルターのカスタマイズにはサブスクリプションが必要です。', paymentCancelled: '支払いがキャンセルされました。', errorSaving: 'エラー：', fillAll: 'すべての必須項目を入力してください。',
     'Versatile': 'リバ (Vers)', 'Top': 'タチ (Top)', 'Bottom': 'ネコ (Btm)', 'Side': 'サイド (Side)', 'VT': 'リバ/タチ (VT)', 'VB': 'リバ/ネコ (VB)',
     'Safe': 'ゴムあり (Safe)', 'Raw': '生/中出し (Raw)',
     'Clean': 'シラフ (Clean)', 'Party': 'ケミ (Party)', 'Party✓': 'Party✓',
-    '1on1_setup': '1対1 (のみ)', 'group_setup': 'グループ (のみ)', 'DoesntMatter_setup': 'こだわらない',
+    '1on1_setup': '1対1 (のみ)', 'group_setup': 'グル���プ (のみ)', 'DoesntMatter_setup': 'こだわらない',
     '1on1': '1対1', 'group': 'グループ', 'DoesntMatter': 'こだわらない',
     'Host': '部屋あり (Host)', 'Travel': '訪問 (Travel)', 'Off': 'オフ', 'Anywhere': 'どこでも', 'Role': '役割', 'Safety': '安全', 'Playstyle': 'スタイル', 'How Many': '人数', 'Where': '場所',
     you: 'あなた', away: '先', online: 'オンライン', offline: 'オフライン',
@@ -411,7 +422,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     forceReset: '強制リセット', gamesApps: 'ゲーム&アプリ',
     selectedUser: '選択したユーザー: {n}', profileReset: 'プロフィールをリセットしました。', resetFailed: 'リセットに失敗しま��た。',
     forceResetConfirm: '{n} のプロフィールを強制リセットしますか？',
-    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: '管理メニュー', adminVipList: '管理者 / VIP リスト', owner: 'オーナー', addRole: '追加', removeRole: '削除', roleUsernamePlaceholder: 'ユーザー名（@なし）', roleUpdateFailed: '更新に失敗しました。', ownerImmutable: 'オーナー権限は変更できません。', noRolesYet: '管理者または VIP はまだいません。', close: '閉じる'
+    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: '管理メニュー', adminVipList: '管理者 / VIP リスト', owner: 'オーナー', addRole: '追加', removeRole: '削除', roleUsernamePlaceholder: 'ユーザー名（@なし）', roleUpdateFailed: '更新に失敗しました。', ownerImmutable: 'オーナー権限は変更できません。', noRolesYet: '管理者または VIP はまだいません。', close: '閉じる', grantVipAll: '全ユーザーに VIP を付与', revokeVipAll: '全ユーザーの VIP を取消', forceResetAll: '全ユーザーを強制リセット', forceResetAllConfirm: '全ユーザーをリセットしますか？全員が次回ログイン時に「情報入力」画面を見ます。', resetAllDone: '全ユーザーをリセットしました。', period_1w: '1 週間', period_1mo: '1 か月', period_3mo: '3 か月', period_6mo: '6 か月', period_1y: '1 年'
   },
   'ko': {
     loading: '앱 로딩 중...', locationRequired: '위치 접근 권한 필요', locationMessage: '위치 권한이 필수입니다. 브라우저 또는 Telegram 설정에서 위치 접근을 허용하고 앱을 다시 시작하세요.', accessDenied: '접근 거부됨', underageMessage: '이 앱은 성인 전용입니다. 연령 제한으로 이 계정은 잠겼습니다.', completeProfile: '프로필 완성하기', profileWarning: '경고: 이는 나중에 변경할 수 없습니다. 여기 입력한 정보는 볼 수 있고 상호작용할 수 있는 상대에게 영향을 줍니다.', dob: '생년월일:', imA: '나는', seeking: '찾는 대상:', man: '남성', woman: '여성', nonBinary: '논바이너리', men: '남성', women: '여성', everyone: '모두', height: '키:', selectHeight: '키 선택', weight: '체중:', selectWeight: '체중 선택', tapToChange: '탭하여 선호도 변경:', mode: '모드:', browsingOnly: '브라우징 전용', onlineOnly: '온라인 전용', meetUp: '만남', saveProfile: '프로필 저장 및 계속', whosNearby: '내 주변', filter: '필터', refresh: '새로고침', grid: '그리드', chat: '채팅', map: '지도', wallet: '지갑', filterUsers: '사용자 필터', ageRange: '연령대', preferenceMatcher: '취향 매칭', rolePreference: '포지션 선호', safetyPreference: '안전 선호', playstylePreference: '플레이스타일 선호', groupSize: '그룹 인원', applyFilters: '필터 적용', ageHidden: '나이 숨김', ageShown: '나이 표시', expires: '만료일:', sendMessage: '메시지 보내기', unlockPreference: '프로필 변경', iGotStuff: '나 있음', unlockPreferencePrompt: '프로필 변경 1000 Stars 결제?', invisiblePrompt: '숨김 모드 3000 Stars 결제?', hideAgePrompt: '나이 숨기기 1000 Stars 결제?', filterSubPrompt: '필터 변경 구독 필요.', paymentCancelled: '결제 취소됨.', errorSaving: '오류:', fillAll: '필수 항목을 입력해주세요.',
@@ -429,7 +440,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     forceReset: '강제 초기화', gamesApps: '게임 & 앱',
     selectedUser: '선택한 사용자: {n}', profileReset: '프로필이 초기화되었습니다.', resetFailed: '초기화에 실패했습니다.',
     forceResetConfirm: '{n} 님의 프로필을 강제 초기화할까요?',
-    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: '관리자 메뉴', adminVipList: '관리자 / VIP 목록', owner: '소유자', addRole: '추가', removeRole: '삭제', roleUsernamePlaceholder: '사용자명 (@ 제외)', roleUpdateFailed: '업데이트 실패.', ownerImmutable: '소유자 권한은 변경할 수 없습니다.', noRolesYet: '아직 관리자나 VIP가 없습니다.', close: '닫기'
+    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: '관리자 메뉴', adminVipList: '관리자 / VIP 목록', owner: '소유자', addRole: '추가', removeRole: '삭제', roleUsernamePlaceholder: '사용자명 (@ 제외)', roleUpdateFailed: '업데이트 실패.', ownerImmutable: '소유자 권한은 변경할 수 없습니다.', noRolesYet: '아직 관리자나 VIP가 없습니다.', close: '닫기', grantVipAll: '모든 사용자에게 VIP 부여', revokeVipAll: '모든 사용자 VIP 해제', forceResetAll: '모든 사용자 강제 초기화', forceResetAllConfirm: '모든 사용자를 초기화할까요? 모두 다음 로그인 시 "정보 입력" 화면을 보게 됩니다.', resetAllDone: '모든 사용자가 초기화되었습니다.', period_1w: '1주', period_1mo: '1개월', period_3mo: '3개월', period_6mo: '6개월', period_1y: '1년'
   },
   'ru': {
     loading: 'Загрузка...', locationRequired: 'Требуется геолокация', locationMessage: 'Разрешение на геолокацию обязательно. Включите доступ к местоположению в браузере или настройках Telegram и перезапустите приложение.', accessDenied: 'Доступ запрещен', underageMessage: 'Приложение только для взрослых. Доступ к этому аккаунту заблокирован из-за возрастных ограничений.', completeProfile: 'Заполните профиль', profileWarning: 'Предупреждение: это нельзя изменить. Введённые здесь данные влияют на то, кого вы видите и с кем взаимодействуете.', dob: 'Дата рождения:', imA: 'Я', seeking: 'ищу', man: 'мужчину', woman: 'женщину', nonBinary: 'небинарную', men: 'мужчин', women: 'женщин', everyone: 'всех', height: 'Рост:', selectHeight: 'Выберите рост', weight: 'Вес:', selectWeight: 'Выберите вес', tapToChange: 'нажмите, чтобы изменить:', mode: 'Режим:', browsingOnly: 'Только просмотр', onlineOnly: 'Только онлайн', meetUp: 'Встреча', saveProfile: 'Сохранить', whosNearby: 'Рядом', filter: 'Фильтр', refresh: 'Обновить', grid: 'Сетка', chat: 'Чат', map: 'Карта', wallet: 'Кошелек', filterUsers: 'Фильтры', ageRange: 'Возраст', preferenceMatcher: 'Подбор по предпочтениям', rolePreference: 'Роль', safetyPreference: 'Безопасность', playstylePreference: 'Стиль', groupSize: 'Размер группы', applyFilters: 'Применить', ageHidden: 'Возраст скрыт', ageShown: 'Возраст виден', expires: 'Истекает:', sendMessage: 'Сообщение', unlockPreference: 'Изменить профиль', iGotStuff: 'У меня есть стафф', unlockPreferencePrompt: 'Изменить профиль за 1000 Stars?', invisiblePrompt: 'Невидимка за 3000 Stars?', hideAgePrompt: 'Скрыть возраст за 1000 Stars?', filterSubPrompt: 'Требуется подписка на фильтры.', paymentCancelled: 'Оплата отменена.', errorSaving: 'Ошибка:', fillAll: 'Заполните все поля.',
@@ -447,7 +458,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     forceReset: 'Принуд. сброс', gamesApps: 'Игры и приложения',
     selectedUser: 'Выбран пользователь: {n}', profileReset: 'Профиль сброшен.', resetFailed: 'Ошибка сброса.',
     forceResetConfirm: 'Сбросить профиль {n}?',
-    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: 'Меню админа', adminVipList: 'Список админ / VIP', owner: 'Владелец', addRole: 'Добавить', removeRole: 'Удалить', roleUsernamePlaceholder: 'имя пользователя (без @)', roleUpdateFailed: 'Ошибка обновления.', ownerImmutable: 'Роль владельца изменить нельзя.', noRolesYet: 'Пока нет админов или VIP.', close: 'Закрыть'
+    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: 'Меню админа', adminVipList: 'Список админ / VIP', owner: 'Владелец', addRole: 'Добавить', removeRole: 'Удалить', roleUsernamePlaceholder: 'имя пользователя (без @)', roleUpdateFailed: 'Ошибка обновления.', ownerImmutable: 'Роль владельца изменить нельзя.', noRolesYet: 'Пока нет админов или VIP.', close: 'Закрыть', grantVipAll: 'Выдать VIP всем', revokeVipAll: 'Отозвать VIP у всех', forceResetAll: 'Сбросить всех пользователей', forceResetAllConfirm: 'Сбросить ВСЕХ пользователей? При следующем входе все увидят экран «заполните профиль».', resetAllDone: 'Все пользователи сброшены.', period_1w: '1 неделя', period_1mo: '1 месяц', period_3mo: '3 месяца', period_6mo: '6 месяцев', period_1y: '1 год'
   }
 };
 
@@ -660,11 +671,16 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isVip, setIsVip] = useState<boolean>(false);
-  // VIP unlocks every paid function indefinitely, just like admin.
-  const paidUnlocked = isAdmin || isVip;
+  // Global VIP: while this timestamp is in the future, EVERY user gets all paid
+  // functions unlocked (an admin-granted, time-boxed VIP for everyone).
+  const [globalVipUntil, setGlobalVipUntil] = useState<number>(0);
+  const globalVipActive = globalVipUntil > Date.now();
+  // VIP (personal or global) unlocks every paid function, just like admin.
+  const paidUnlocked = isAdmin || isVip || globalVipActive;
   const [roles, setRoles] = useState<{ username: string; role: string }[]>([]);
   const [showAdminMenu, setShowAdminMenu] = useState<boolean>(false);
   const [showRolesModal, setShowRolesModal] = useState<boolean>(false);
+  const [showVipPeriods, setShowVipPeriods] = useState<boolean>(false);
   const [newRoleUsername, setNewRoleUsername] = useState<string>('');
   const [newRole, setNewRole] = useState<'admin' | 'vip'>('vip');
   const [showStuffBubble, setShowStuffBubble] = useState<boolean>(false);
@@ -830,6 +846,12 @@ export default function App() {
           if (Array.isArray(rolesData)) rolesList = rolesData as { username: string; role: string }[];
         }
         setRoles(rolesList);
+        // Load the global VIP window (admin-granted VIP for everyone).
+        if (supabase) {
+          const { data: settingRow } = await supabase.from('app_settings').select('value').eq('key', 'global_vip_until').single();
+          const gv = Number(settingRow?.value);
+          if (Number.isFinite(gv)) setGlobalVipUntil(gv);
+        }
         const unameLower = userUsername.toLowerCase();
         const tableRole = rolesList.find((r) => (r.username || '').toLowerCase() === unameLower)?.role;
         // Owner (mileschan852) and hkmembersonly are always admin; everyone else
@@ -1383,6 +1405,35 @@ export default function App() {
     } catch (e) { console.error(e); alert(t('roleUpdateFailed')); }
   };
 
+  const handleGrantGlobalVip = async (ms: number) => {
+    if (!PAYMENT_WORKER_URL) { console.error('VITE_PAYMENT_WORKER_URL is not set'); return; }
+    const until = ms > 0 ? Date.now() + ms : 0;
+    try {
+      const res = await fetch(`${PAYMENT_WORKER_URL}/api/global-vip`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ until, initData: window.Telegram?.WebApp?.initData || '' }),
+      });
+      if (!res.ok) { alert(t('roleUpdateFailed')); return; }
+      setGlobalVipUntil(until);
+      setShowVipPeriods(false);
+      setShowAdminMenu(false);
+    } catch (e) { console.error(e); alert(t('roleUpdateFailed')); }
+  };
+
+  const handleResetAll = async () => {
+    if (!PAYMENT_WORKER_URL) { console.error('VITE_PAYMENT_WORKER_URL is not set'); return; }
+    if (!window.confirm(t('forceResetAllConfirm'))) return;
+    try {
+      const res = await fetch(`${PAYMENT_WORKER_URL}/api/reset-all`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData: window.Telegram?.WebApp?.initData || '' }),
+      });
+      if (!res.ok) { alert(t('resetFailed')); return; }
+      setShowAdminMenu(false);
+      alert(t('resetAllDone'));
+    } catch (e) { console.error(e); alert(t('resetFailed')); }
+  };
+
   const filterSubStatusInfo = (() => {
     if (!paidUnlocked && !hasFilterSub && !(filterSubUntil > Date.now())) return { label: t('unsubscribed'), color: '#888' };
     if (filterSubUntil > Date.now()) return { label: t('subscribedUntil').replace('{d}', new Date(filterSubUntil).toLocaleDateString()), color: '#4ade80' };
@@ -1479,7 +1530,7 @@ export default function App() {
           </button>
           {showFilterDropdown && (
             <div style={{ position: 'absolute', top: '44px', right: '0', zIndex: 2000, backgroundColor: '#1e1e1e', border: '1px solid #444', borderRadius: '8px', padding: '12px', width: '280px', boxShadow: '0 6px 20px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>{t('filterUsers')}<span style={{ fontSize: '11px', fontWeight: 'normal', color: isAdmin ? '#4ade80' : isVip ? '#f5c518' : filterSubStatusInfo.color }}>{isAdmin ? t('admin') : isVip ? t('vipUnlimited') : `${filterSubStatusInfo.label}${filterSubUntil > Date.now() ? ` · ${t('expires')} ${new Date(filterSubUntil).toLocaleDateString()}` : ''}`}</span></div>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>{t('filterUsers')}<span style={{ fontSize: '11px', fontWeight: 'normal', color: isAdmin ? '#4ade80' : isVip ? '#f5c518' : globalVipActive ? '#f5c518' : filterSubStatusInfo.color }}>{isAdmin ? t('admin') : isVip ? t('vipUnlimited') : globalVipActive ? `${t('vip')} · ${t('expires')} ${new Date(globalVipUntil).toLocaleDateString()}` : `${filterSubStatusInfo.label}${filterSubUntil > Date.now() ? ` · ${t('expires')} ${new Date(filterSubUntil).toLocaleDateString()}` : ''}`}</span></div>
               <div style={{ borderTop: '1px solid #333', paddingTop: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => handleToggleFilterItem('age')}>
                   <input type="checkbox" checked={filterAgeOn} onChange={() => {}} style={{ width: '16px', height: '16px', accentColor: '#007bff', cursor: 'pointer' }} />
@@ -1592,8 +1643,19 @@ export default function App() {
               <div style={{ position: 'absolute', top: '14px', left: '14px', zIndex: 6 }}>
                 <button type="button" onClick={(e) => { e.stopPropagation(); setShowAdminMenu((v) => !v); }} style={{ width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#4b5563', border: '1px solid #6b7280', borderRadius: '6px', fontSize: '16px', color: '#fff', cursor: 'pointer', lineHeight: 1 }} title={t('adminMenu')} aria-label={t('adminMenu')}>⚙</button>
                 {showAdminMenu && (
-                  <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '34px', left: 0, backgroundColor: '#1e1e1e', border: '1px solid #444', borderRadius: '8px', padding: '6px', minWidth: '190px', boxShadow: '0 6px 20px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <button type="button" onClick={() => { setShowAdminMenu(false); setShowRolesModal(true); loadRoles(); }} style={{ padding: '9px 10px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '6px', fontSize: '13px', color: '#fff', cursor: 'pointer', textAlign: 'left' }}>{t('adminVipList')}</button>
+                  <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '34px', left: 0, backgroundColor: '#1e1e1e', border: '1px solid #444', borderRadius: '8px', padding: '6px', minWidth: '210px', boxShadow: '0 6px 20px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <button type="button" onClick={() => { setShowAdminMenu(false); setShowVipPeriods(false); setShowRolesModal(true); loadRoles(); }} style={{ padding: '9px 10px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '6px', fontSize: '13px', color: '#fff', cursor: 'pointer', textAlign: 'left' }}>{t('adminVipList')}</button>
+                    <button type="button" onClick={() => setShowVipPeriods((v) => !v)} style={{ padding: '9px 10px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '6px', fontSize: '13px', color: '#fff', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}><span>{t('grantVipAll')}</span><span style={{ color: '#f5c518', fontSize: '11px' }}>{showVipPeriods ? '▾' : '▸'}</span></button>
+                    {globalVipActive && (<div style={{ fontSize: '10px', color: '#f5c518', padding: '0 4px' }}>{t('vip')} · {t('expires')} {new Date(globalVipUntil).toLocaleDateString()}</div>)}
+                    {showVipPeriods && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '2px 0 4px 10px', borderLeft: '2px solid #f5c518', marginLeft: '2px' }}>
+                        {([['1w', 7 * 864e5], ['1mo', 30 * 864e5], ['3mo', 90 * 864e5], ['6mo', 180 * 864e5], ['1y', 365 * 864e5]] as [string, number][]).map(([key, ms]) => (
+                          <button key={key} type="button" onClick={() => handleGrantGlobalVip(ms)} style={{ padding: '7px 10px', backgroundColor: '#3a2f00', border: '1px solid #665500', borderRadius: '6px', fontSize: '12px', color: '#f5c518', cursor: 'pointer', textAlign: 'left' }}>{t(`period_${key}`)}</button>
+                        ))}
+                        {globalVipActive && (<button type="button" onClick={() => handleGrantGlobalVip(0)} style={{ padding: '7px 10px', backgroundColor: '#3a1010', border: '1px solid #663333', borderRadius: '6px', fontSize: '12px', color: '#f87171', cursor: 'pointer', textAlign: 'left' }}>{t('revokeVipAll')}</button>)}
+                      </div>
+                    )}
+                    <button type="button" onClick={handleResetAll} style={{ padding: '9px 10px', backgroundColor: '#7f1d1d', border: '1px solid #991b1b', borderRadius: '6px', fontSize: '13px', color: '#fff', cursor: 'pointer', textAlign: 'left' }}>{t('forceResetAll')}</button>
                   </div>
                 )}
               </div>
@@ -1720,8 +1782,9 @@ export default function App() {
 }
 
 
-
-===== FILE: src/index.css =====
+================================================================================
+FILE: src/index.css
+================================================================================
 * {
   box-sizing: border-box;
   margin: 0;
@@ -1745,8 +1808,9 @@ html, body, #root {
   filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) grayscale(0.2);
 }
 
-
-===== FILE: src/main.tsx =====
+================================================================================
+FILE: src/main.tsx
+================================================================================
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
@@ -1782,8 +1846,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 );
 
-
-===== FILE: src/pages/MapPage.tsx =====
+================================================================================
+FILE: src/pages/MapPage.tsx
+================================================================================
 import React, { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -1835,8 +1900,9 @@ const MapPage: React.FC = () => {
 }
 
 export default MapPage
-
-===== FILE: src/pages/MintPage.tsx =====
+================================================================================
+FILE: src/pages/MintPage.tsx
+================================================================================
 import React, { useState } from 'react'
 import styled from 'styled-components'
 import { useTonConnectUI, useTonAddress } from '@tonconnect/ui-react'
@@ -2079,8 +2145,9 @@ const MintPage: React.FC = () => {
 }
 
 export default MintPage
-
-===== FILE: supabase/migrations/001_initial_schema.sql =====
+================================================================================
+FILE: supabase/migrations/001_initial_schema.sql
+================================================================================
 -- Who's Nearby — 001: initial schema
 -- Idempotent: safe to run on a fresh project or an existing one.
 
@@ -2161,8 +2228,9 @@ create policy "Allow public insert on transactions" on public.transactions for i
 
 notify pgrst, 'reload schema';
 
-
-===== FILE: supabase/migrations/002_age_enforcement_and_nearby.sql =====
+================================================================================
+FILE: supabase/migrations/002_age_enforcement_and_nearby.sql
+================================================================================
 -- Who's Nearby — 002: server-side age enforcement + nearby search (Haversine)
 -- Idempotent: uses create or replace / drop-if-exists everywhere.
 
@@ -2317,8 +2385,9 @@ $$;
 
 notify pgrst, 'reload schema';
 
-
-===== FILE: supabase/migrations/003_private_notes_and_filter_sub.sql =====
+================================================================================
+FILE: supabase/migrations/003_private_notes_and_filter_sub.sql
+================================================================================
 -- 003_private_notes_and_filter_sub.sql
 -- Adds private_notes column (admin-only private notes on profiles)
 -- and filter_sub_expiry (server-side filter subscription expiry).
@@ -2339,8 +2408,9 @@ begin
   end if;
 end $$;
 
-
-===== FILE: supabase/migrations/004_rls_hardening.sql =====
+================================================================================
+FILE: supabase/migrations/004_rls_hardening.sql
+================================================================================
 -- 004_rls_hardening.sql
 -- Locks down anon (client-side) writes: everything writable now goes through
 -- the Worker using the service-role key. Anon keeps read-only access.
@@ -2388,8 +2458,9 @@ create policy "Allow public select on purchases" on public.purchases
 
 notify pgrst, 'reload schema';
 
-
-===== FILE: supabase/migrations/005_webhook_secret.sql =====
+================================================================================
+FILE: supabase/migrations/005_webhook_secret.sql
+================================================================================
 -- 004_webhook_secret.sql
 -- Telegram webhook secret verification for the payment webhook.
 --
@@ -2414,8 +2485,47 @@ insert into public.schema_migrations (version, name)
 values ('004', 'webhook_secret')
 on conflict (version) do nothing;
 
+================================================================================
+FILE: supabase/migrations/006_app_roles.sql
+================================================================================
+-- Managed admin / VIP list.
+-- Entitlements survive across sessions and are shared across all clients.
+-- role: 'admin' (all admin powers) | 'vip' (all paid functions unlocked indefinitely).
+-- The owner (mileschan852) is always admin in application code and is never
+-- stored/removable here.
 
-===== FILE: tsconfig.app.json =====
+CREATE TABLE IF NOT EXISTS app_roles (
+  username   text PRIMARY KEY,
+  role       text NOT NULL CHECK (role IN ('admin', 'vip')),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Store usernames normalized (lowercase, no leading @). App code already
+-- lowercases, this guards direct inserts.
+CREATE OR REPLACE FUNCTION app_roles_normalize_username()
+RETURNS trigger AS $$
+BEGIN
+  NEW.username := lower(ltrim(NEW.username, '@'));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_app_roles_normalize ON app_roles;
+CREATE TRIGGER trg_app_roles_normalize
+  BEFORE INSERT OR UPDATE ON app_roles
+  FOR EACH ROW EXECUTE FUNCTION app_roles_normalize_username();
+
+-- RLS: readable by everyone (clients derive their own entitlements from it);
+-- writes go through the worker's service-role key only (bypasses RLS), matching
+-- migration 004's hardening where the anon key is read-only.
+ALTER TABLE app_roles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "app_roles_read" ON app_roles;
+CREATE POLICY "app_roles_read" ON app_roles FOR SELECT USING (true);
+
+================================================================================
+FILE: tsconfig.app.json
+================================================================================
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
@@ -2443,8 +2553,9 @@ on conflict (version) do nothing;
   "include": ["src"]
 }
 
-
-===== FILE: tsconfig.json =====
+================================================================================
+FILE: tsconfig.json
+================================================================================
 {
   "files": [],
   "references": [
@@ -2453,8 +2564,9 @@ on conflict (version) do nothing;
   ]
 }
 
-
-===== FILE: tsconfig.node.json =====
+================================================================================
+FILE: tsconfig.node.json
+================================================================================
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
@@ -2479,8 +2591,9 @@ on conflict (version) do nothing;
   "include": ["vite.config.ts"]
 }
 
-
-===== FILE: vercel.json =====
+================================================================================
+FILE: vercel.json
+================================================================================
 {
   "framework": "vite",
   "buildCommand": "tsc -b && vite build",
@@ -2490,8 +2603,9 @@ on conflict (version) do nothing;
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
-
-===== FILE: vite.config.ts =====
+================================================================================
+FILE: vite.config.ts
+================================================================================
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -2501,8 +2615,9 @@ export default defineConfig({
   base: './', 
 })
 
-
-===== FILE: worker.js =====
+================================================================================
+FILE: worker.js
+================================================================================
 // WhosNearbyBot worker — API-only, RLS-hardened version.
 // Secrets (env): TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_ANON_KEY,
 //                SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_WEBHOOK_SECRET
@@ -2909,6 +3024,46 @@ export default {
       } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
     }
 
+    // POST /api/global-vip — admin-only. Grants EVERY user all paid functions
+    // until a chosen time (epoch ms), or revokes it (until <= 0 / null).
+    // Stored in app_settings.global_vip_until; clients read it and treat any
+    // future value as VIP-for-all.
+    if (path === "/api/global-vip" && request.method === "POST") {
+      try {
+        const { until, initData } = await request.json();
+        if (!(await verifyInitData(env, initData || ""))) return json({ error: "Unauthorized" }, 401);
+        const authUser = JSON.parse(new URLSearchParams(initData).get("user") || "{}");
+        if (!(await isAdminCaller(env, authUser))) return json({ error: "Forbidden" }, 403);
+        const untilMs = Number(until);
+        const value = Number.isFinite(untilMs) && untilMs > Date.now() ? String(Math.floor(untilMs)) : "0";
+        await sbPost(env, "rest/v1/app_settings", { key: "global_vip_until", value, updated_at: new Date().toISOString() });
+        await sbPatch(env, "rest/v1/app_settings?key=eq.global_vip_until", { value, updated_at: new Date().toISOString() });
+        return json({ ok: true, until: value });
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
+    // POST /api/reset-all — admin-only. Clears the required profile fields for
+    // EVERY user so the "complete your info" setup screen appears on their next
+    // login. Mirrors /api/reset-profile but applied across all rows.
+    if (path === "/api/reset-all" && request.method === "POST") {
+      try {
+        const { initData } = await request.json();
+        if (!(await verifyInitData(env, initData || ""))) return json({ error: "Unauthorized" }, 401);
+        const authUser = JSON.parse(new URLSearchParams(initData).get("user") || "{}");
+        if (!(await isAdminCaller(env, authUser))) return json({ error: "Forbidden" }, 403);
+        // PostgREST requires a filter for bulk PATCH; `id=not.is.null` matches all.
+        await sbPatch(env, "rest/v1/profiles?id=not.is.null", {
+          name: null, username: null, avatar: null, dob: null, height: null, weight: null,
+          gender: "Male", seeking: "Male", role_pref: null, safety_pref: null, playstyle_pref: null,
+          where_pref: null, how_many_pref: null, non_man_mode: null, hide_age: false,
+          grid_visible: true, map_visible: false, hide_age_expiry: null, invisible_expiry: null,
+        });
+        await sbPost(env, "rest/v1/app_settings", { key: "force_reset_after", value: String(Date.now()), updated_at: new Date().toISOString() });
+        await sbPatch(env, "rest/v1/app_settings?key=eq.force_reset_after", { value: String(Date.now()), updated_at: new Date().toISOString() });
+        return json({ ok: true });
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
     // GET /api/health
     if (path === "/api/health" || path === "/health") return json({ ok: true, version: "rls-hardened-1.2" });
 
@@ -2916,8 +3071,9 @@ export default {
   },
 };
 
-
-===== FILE: wrangler.toml =====
+================================================================================
+FILE: wrangler.toml
+================================================================================
 name = "whosnearby-bot"
 main = "worker.js"
 compatibility_date = "2026-08-04"
@@ -2925,5 +3081,3 @@ compatibility_flags = ["nodejs_compat"]
 
 # All secrets are injected at deploy time (wrangler secret put / hosting env vars).
 # NEVER commit real values here. See .env.example for the variable names.
-
-

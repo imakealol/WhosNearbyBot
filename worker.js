@@ -404,6 +404,46 @@ export default {
       } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
     }
 
+    // POST /api/global-vip — admin-only. Grants EVERY user all paid functions
+    // until a chosen time (epoch ms), or revokes it (until <= 0 / null).
+    // Stored in app_settings.global_vip_until; clients read it and treat any
+    // future value as VIP-for-all.
+    if (path === "/api/global-vip" && request.method === "POST") {
+      try {
+        const { until, initData } = await request.json();
+        if (!(await verifyInitData(env, initData || ""))) return json({ error: "Unauthorized" }, 401);
+        const authUser = JSON.parse(new URLSearchParams(initData).get("user") || "{}");
+        if (!(await isAdminCaller(env, authUser))) return json({ error: "Forbidden" }, 403);
+        const untilMs = Number(until);
+        const value = Number.isFinite(untilMs) && untilMs > Date.now() ? String(Math.floor(untilMs)) : "0";
+        await sbPost(env, "rest/v1/app_settings", { key: "global_vip_until", value, updated_at: new Date().toISOString() });
+        await sbPatch(env, "rest/v1/app_settings?key=eq.global_vip_until", { value, updated_at: new Date().toISOString() });
+        return json({ ok: true, until: value });
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
+    // POST /api/reset-all — admin-only. Clears the required profile fields for
+    // EVERY user so the "complete your info" setup screen appears on their next
+    // login. Mirrors /api/reset-profile but applied across all rows.
+    if (path === "/api/reset-all" && request.method === "POST") {
+      try {
+        const { initData } = await request.json();
+        if (!(await verifyInitData(env, initData || ""))) return json({ error: "Unauthorized" }, 401);
+        const authUser = JSON.parse(new URLSearchParams(initData).get("user") || "{}");
+        if (!(await isAdminCaller(env, authUser))) return json({ error: "Forbidden" }, 403);
+        // PostgREST requires a filter for bulk PATCH; `id=not.is.null` matches all.
+        await sbPatch(env, "rest/v1/profiles?id=not.is.null", {
+          name: null, username: null, avatar: null, dob: null, height: null, weight: null,
+          gender: "Male", seeking: "Male", role_pref: null, safety_pref: null, playstyle_pref: null,
+          where_pref: null, how_many_pref: null, non_man_mode: null, hide_age: false,
+          grid_visible: true, map_visible: false, hide_age_expiry: null, invisible_expiry: null,
+        });
+        await sbPost(env, "rest/v1/app_settings", { key: "force_reset_after", value: String(Date.now()), updated_at: new Date().toISOString() });
+        await sbPatch(env, "rest/v1/app_settings?key=eq.force_reset_after", { value: String(Date.now()), updated_at: new Date().toISOString() });
+        return json({ ok: true });
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
     // GET /api/health
     if (path === "/api/health" || path === "/health") return json({ ok: true, version: "rls-hardened-1.2" });
 
