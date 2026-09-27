@@ -9,6 +9,3 @@ assets
 dist/
 set_secret.cjs
 assets/
-
-# transient: external MilesHighClub clone for remediation (not part of this repo)
-mhc-work/
