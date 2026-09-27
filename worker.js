@@ -36,6 +36,23 @@ function computeAge(dob) {
   return age;
 }
 
+// Usernames that are always admin regardless of the managed list. The owner
+// (mileschan852) can never be demoted.
+const OWNER_USERNAME = "mileschan852";
+const ALWAYS_ADMIN = [OWNER_USERNAME, "hkmembersonly"];
+
+// True when the verified Telegram user is an admin: the hard-coded owner id,
+// an always-admin username, or a username stored as role=admin in app_roles.
+async function isAdminCaller(env, authUser) {
+  if (Number(authUser?.id) === ADMIN_ID) return true;
+  const uname = (authUser?.username || "").toLowerCase();
+  if (!uname) return false;
+  if (ALWAYS_ADMIN.includes(uname)) return true;
+  const rows = await sbGet(env, `rest/v1/app_roles?select=role&username=eq.${encodeURIComponent(uname)}`);
+  const role = (Array.isArray(rows) ? rows[0] : rows)?.role;
+  return role === "admin";
+}
+
 function sbHeaders(env, write = false) {
   const key = write && env.SUPABASE_SERVICE_ROLE_KEY ? env.SUPABASE_SERVICE_ROLE_KEY : env.SUPABASE_ANON_KEY;
   return {
@@ -351,8 +368,44 @@ export default {
       } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
     }
 
+    // GET /api/roles — list managed admin/VIP entries (public read).
+    if (path === "/api/roles" && request.method === "GET") {
+      try {
+        const rows = await sbGet(env, "rest/v1/app_roles?select=username,role,created_at&order=created_at.asc");
+        return json(Array.isArray(rows) ? rows : []);
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
+    // POST /api/roles — admin-only add/remove of admin/VIP entries.
+    // Authorization comes from verified initData; the caller must be an admin.
+    // The owner (mileschan852) role can never be added or removed here.
+    if (path === "/api/roles" && request.method === "POST") {
+      try {
+        const { action, username, role, initData } = await request.json();
+        if (!(await verifyInitData(env, initData || ""))) return json({ error: "Unauthorized" }, 401);
+        const authUser = JSON.parse(new URLSearchParams(initData).get("user") || "{}");
+        if (!(await isAdminCaller(env, authUser))) return json({ error: "Forbidden" }, 403);
+        const uname = String(username || "").trim().toLowerCase().replace(/^@/, "");
+        if (!uname) return json({ error: "Missing username" }, 400);
+        if (uname === OWNER_USERNAME) return json({ error: "Owner role is immutable" }, 403);
+        if (action === "add") {
+          if (role !== "admin" && role !== "vip") return json({ error: "Invalid role" }, 400);
+          await sbPost(env, "rest/v1/app_roles", { username: uname, role });
+          await sbPatch(env, `rest/v1/app_roles?username=eq.${encodeURIComponent(uname)}`, { role });
+          return json({ ok: true });
+        }
+        if (action === "remove") {
+          const res = await fetch(`${env.SUPABASE_URL}/rest/v1/app_roles?username=eq.${encodeURIComponent(uname)}`, {
+            method: "DELETE", headers: sbHeaders(env, true),
+          });
+          return json({ ok: res.ok });
+        }
+        return json({ error: "Invalid action" }, 400);
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
     // GET /api/health
-    if (path === "/api/health" || path === "/health") return json({ ok: true, version: "rls-hardened-1.1" });
+    if (path === "/api/health" || path === "/health") return json({ ok: true, version: "rls-hardened-1.2" });
 
     return json({ error: "Not found" }, 404);
   },

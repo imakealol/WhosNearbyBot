@@ -66,7 +66,8 @@ const translations: Record<LangKey, Record<string, string>> = {
     privateNote: 'Private note', notePlaceholder: 'Private note (100 chars max)',
     forceReset: 'Force reset', gamesApps: 'Games & Apps', resetProfile: 'Reset Profile',
     selectedUser: 'Selected user: {n}', profileReset: 'Profile reset.', resetFailed: 'Reset failed.',
-    forceResetConfirm: 'Force reset profile of {n}?'
+    forceResetConfirm: 'Force reset profile of {n}?',
+    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: 'Admin Menu', adminVipList: 'Admin / VIP List', owner: 'Owner', addRole: 'Add', removeRole: 'Remove', roleUsernamePlaceholder: 'username (without @)', roleUpdateFailed: 'Update failed.', ownerImmutable: 'The owner role cannot be changed.', noRolesYet: 'No admins or VIPs yet.', close: 'Close'
   },
   'zh-CN': {
     loading: '正在加载应用...', locationRequired: '需要位置权限', locationMessage: '使用"附近"功能必须获得位置权限。请在浏览器或 Telegram 设置中启用位置访问并重新启动应用。', accessDenied: '拒绝访问', underageMessage: '本应用仅限成年人使用。由于年龄限制，该账户已被锁定。', completeProfile: '完善您的个人资料', profileWarning: '警告：此信息将来无法更改。此处填写的内容会影响您可以看到和互动的用户。', dob: '出生日期：', imA: '我是', seeking: '寻找', man: '男性', woman: '女性', nonBinary: '非二元性别', men: '男性', women: '女性', everyone: '所有人', height: '身高：', selectHeight: '选择身高', weight: '体重：', selectWeight: '选择体重', tapToChange: '点击更改您的偏好：', mode: '模式：', browsingOnly: '仅浏览', onlineOnly: '仅在线', meetUp: '约会中', saveProfile: '保存资料并继续', whosNearby: '附近的人', filter: '筛选', refresh: '刷新', grid: '网格', chat: '聊天', map: '地图', wallet: '钱包', filterUsers: '筛选用户', ageRange: '年龄范围', preferenceMatcher: '偏好匹配器', rolePreference: '角色偏好', safetyPreference: '安全偏好', playstylePreference: '游戏风格偏好', groupSize: '群组人数', applyFilters: '应用筛选', ageHidden: '年龄已隐藏', ageShown: '年龄已显示', expires: '到期时间：', sendMessage: '发送消息', unlockPreference: '更改资料与偏好', iGotStuff: '我有货', unlockPreferencePrompt: '更改个人资料与偏好需要支付 1000 Telegram Stars。是否继续支付？', invisiblePrompt: '隐身需要订阅 30 天，费用为 3000 Telegram Stars。是否继续支付？', hideAgePrompt: '隐藏年龄需要订阅 30 天，费用为 1000 Telegram Stars。是否继续支付？', filterSubPrompt: '自定义此筛选条件需要订阅。是否继续支付？', paymentCancelled: '支付已取消或失败。', errorSaving: '保存资料出错：', fillAll: '请填写所有必填问题以继续。',
@@ -74,7 +75,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     'Safe': 'Safe (戴套)', 'Raw': 'Raw (无套)',
     'Clean': 'Clean (无药)', 'Party': 'Party (嗨药)', 'Party✓': 'Party✓',
     '1on1_setup': '单对单 (仅限1on1)', 'group_setup': '群组 (仅限群组)', 'DoesntMatter_setup': '无所谓',
-    '1on1': '单���单', 'group': '群组', 'DoesntMatter': '无所谓',
+    '1on1': '单�����单', 'group': '群组', 'DoesntMatter': '无所谓',
     'Host': '提供场地 (Host)', 'Travel': '上门 (Travel)', 'Off': '关闭', 'Anywhere': '任意', 'Role': '角色', 'Safety': '安全', 'Playstyle': '风格', 'How Many': '人数', 'Where': '地点',
     you: '你', away: '远', online: '在线', offline: '离线',
     mAgo: '{n}分钟前', hAgo: '{n}小时前', dAgo: '{n}天前',
@@ -83,7 +84,8 @@ const translations: Record<LangKey, Record<string, string>> = {
     privateNote: '私密备注', notePlaceholder: '私密备注 (最多100字)',
     forceReset: '强制重置', gamesApps: '游戏和应用',
     selectedUser: '��选中用户: {n}', profileReset: '资料已重置。', resetFailed: '重置失败。',
-    forceResetConfirm: '强制重置 {n} 的资料？'
+    forceResetConfirm: '强制重置 {n} 的资料？',
+    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: '管理菜单', adminVipList: '管理员 / VIP 列表', owner: '拥有者', addRole: '添加', removeRole: '移除', roleUsernamePlaceholder: '用户名（不含 @）', roleUpdateFailed: '更新失败。', ownerImmutable: '拥有者角色无法更改。', noRolesYet: '暂无管理员或 VIP。', close: '关闭'
   },
   'zh-TW': {
     loading: '正在載入應用程式...', locationRequired: '需要位置權限', locationMessage: '使用「附近」功能必須獲得位置權限。請在瀏覽器或 Telegram 設定中啟用位置存取並重新啟動應用程式。', accessDenied: '存取被拒', underageMessage: '本應用程式僅限成年人使用。由於年齡限制，該帳戶已被鎖定。', completeProfile: '完善您的個人資料', profileWarning: '警告：此資訊未來無法更改。此處填寫的內容會影響您可以看到和互動的使用者。', dob: '出生日期：', imA: '我是', seeking: '尋找', man: '男性', woman: '女性', nonBinary: '非二元性別', men: '男性', women: '女性', everyone: '所有人', height: '身高：', selectHeight: '選擇身高', weight: '體重：', selectWeight: '選擇體重', tapToChange: '點擊更改您的偏好：', mode: '模式：', browsingOnly: '僅瀏覽', onlineOnly: '僅線上', meetUp: '見面中', saveProfile: '儲存資料並繼續', whosNearby: '附近的人', filter: '篩選', refresh: '重新整理', grid: '網格', chat: '聊天', map: '地圖', wallet: '錢包', filterUsers: '篩選使用者', ageRange: '年齡範圍', preferenceMatcher: '偏好匹配器', rolePreference: '角色偏好', safetyPreference: '安全偏好', playstylePreference: '風格偏好', groupSize: '群組人數', applyFilters: '套用篩選', ageHidden: '年齡已隱藏', ageShown: '年齡已顯示', expires: '到期時間：', sendMessage: '傳送訊息', unlockPreference: '更改資料與偏好', iGotStuff: '我有貨', unlockPreferencePrompt: '更改個人資料與偏好需要支付 1000 Telegram Stars。是否繼續支付？', invisiblePrompt: '隱身需要訂閱 30 天，費用為 3000 Telegram Stars。是否繼續支付？', hideAgePrompt: '隱藏年齡需要訂閱 30 天，費用為 1000 Telegram Stars。是否繼續支付？', filterSubPrompt: '自訂此篩選條件需要訂閱。是否繼續支付？', paymentCancelled: '付款已取消或失敗。', errorSaving: '儲存資料出錯：', fillAll: '請填寫所有必填問題以繼續。',
@@ -100,7 +102,8 @@ const translations: Record<LangKey, Record<string, string>> = {
     privateNote: '私密備註', notePlaceholder: '私密備註 (最多100字)',
     forceReset: '強制重置', gamesApps: '遊戲和應用',
     selectedUser: '已選中用戶: {n}', profileReset: '資料已重置。', resetFailed: '重置失敗。',
-    forceResetConfirm: '強制重置 {n} 的資料？'
+    forceResetConfirm: '強制重置 {n} 的資料？',
+    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: '管理選單', adminVipList: '管理員 / VIP 列表', owner: '擁有者', addRole: '新增', removeRole: '移除', roleUsernamePlaceholder: '用戶名（不含 @）', roleUpdateFailed: '更新失敗。', ownerImmutable: '擁有者角色無法更改。', noRolesYet: '暫無管理員或 VIP。', close: '關閉'
   },
   'ja': {
     loading: 'アプリを読み込んでいます...', locationRequired: '位置情報のアクセスが必要です', locationMessage: '位置情報の許可が必須です。ブラウザまたは Telegram の設定で位置情報を有効にし、アプリを再起動してください。', accessDenied: 'アクセスが拒否されました', underageMessage: 'このアプリは成人向けです。年齢制限により、このアカウントのアクセスはロックされました。', completeProfile: 'プロフィールを完成させる', profileWarning: '警告：これは後から変更できません。ここで入力した情報は、表示・交流できる相手に影響します。', dob: '生年月日：', imA: '私は', seeking: '探しています：', man: '男性', woman: '女性', nonBinary: 'ノンバイナリー', men: '男性', women: '女性', everyone: 'すべての人', height: '身長：', selectHeight: '身長を選択', weight: '体重：', selectWeight: '体重を選択', tapToChange: 'タップして好みを変更：', mode: 'モード：', browsingOnly: '閲覧のみ', onlineOnly: 'オンラインのみ', meetUp: 'ミートアップ', saveProfile: 'プロフィールを保存して続ける', whosNearby: '近くの人', filter: 'フィルター', refresh: '更新', grid: 'グリッド', chat: 'チャット', map: 'マップ', wallet: 'ウォレット', filterUsers: 'ユーザーをフィルター', ageRange: '年齢層', preferenceMatcher: '好みマッチング', rolePreference: 'ロールの好み', safetyPreference: '安全の好み', playstylePreference: 'プレイスタイルの好み', groupSize: 'グループサイズ', applyFilters: 'フィルターを適用', ageHidden: '年齢非表示', ageShown: '年齢表示', expires: '有効期限：', sendMessage: 'メッセージを送る', unlockPreference: 'プロフィールと好みを変更', iGotStuff: '持ってるよ', unlockPreferencePrompt: 'プロフィールの変更には1000 Starsが必要です。', invisiblePrompt: '透明化には3000 Starsが必要です。', hideAgePrompt: '年齢非表示には1000 Starsが必要です。', filterSubPrompt: 'フィルターのカスタマイズにはサブスクリプションが必要です。', paymentCancelled: '支払いがキャンセルされました。', errorSaving: 'エラー：', fillAll: 'すべての必須項目を入力してください。',
@@ -114,10 +117,11 @@ const translations: Record<LangKey, Record<string, string>> = {
     mAgo: '{n}分前', hAgo: '{n}時間前', dAgo: '{n}日前',
     m2m: '男×男 (M2M)', admin: '管理者', unsubscribed: '未購読',
     subscribedUntil: '購読期限: {d}', expired: '期限切れ',
-    privateNote: 'プライベートメモ', notePlaceholder: 'プライベートメモ (最大100文字)',
+    privateNote: 'プライベートメモ', notePlaceholder: 'プライベートメモ (最大100文���)',
     forceReset: '強制リセット', gamesApps: 'ゲーム&アプリ',
     selectedUser: '選択したユーザー: {n}', profileReset: 'プロフィールをリセットしました。', resetFailed: 'リセットに失敗しま��た。',
-    forceResetConfirm: '{n} のプロフィールを強制リセットしますか？'
+    forceResetConfirm: '{n} のプロフィールを強制リセットしますか？',
+    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: '管理メニュー', adminVipList: '管理者 / VIP リスト', owner: 'オーナー', addRole: '追加', removeRole: '削除', roleUsernamePlaceholder: 'ユーザー名（@なし）', roleUpdateFailed: '更新に失敗しました。', ownerImmutable: 'オーナー権限は変更できません。', noRolesYet: '管理者または VIP はまだいません。', close: '閉じる'
   },
   'ko': {
     loading: '앱 로딩 중...', locationRequired: '위치 접근 권한 필요', locationMessage: '위치 권한이 필수입니다. 브라우저 또는 Telegram 설정에서 위치 접근을 허용하고 앱을 다시 시작하세요.', accessDenied: '접근 거부됨', underageMessage: '이 앱은 성인 전용입니다. 연령 제한으로 이 계정은 잠겼습니다.', completeProfile: '프로필 완성하기', profileWarning: '경고: 이는 나중에 변경할 수 없습니다. 여기 입력한 정보는 볼 수 있고 상호작용할 수 있는 상대에게 영향을 줍니다.', dob: '생년월일:', imA: '나는', seeking: '찾는 대상:', man: '남성', woman: '여성', nonBinary: '논바이너리', men: '남성', women: '여성', everyone: '모두', height: '키:', selectHeight: '키 선택', weight: '체중:', selectWeight: '체중 선택', tapToChange: '탭하여 선호도 변경:', mode: '모드:', browsingOnly: '브라우징 전용', onlineOnly: '온라인 전용', meetUp: '만남', saveProfile: '프로필 저장 및 계속', whosNearby: '내 주변', filter: '필터', refresh: '새로고침', grid: '그리드', chat: '채팅', map: '지도', wallet: '지갑', filterUsers: '사용자 필터', ageRange: '연령대', preferenceMatcher: '취향 매칭', rolePreference: '포지션 선호', safetyPreference: '안전 선호', playstylePreference: '플레이스타일 선호', groupSize: '그룹 인원', applyFilters: '필터 적용', ageHidden: '나이 숨김', ageShown: '나이 표시', expires: '만료일:', sendMessage: '메시지 보내기', unlockPreference: '프로필 변경', iGotStuff: '나 있음', unlockPreferencePrompt: '프로필 변경 1000 Stars 결제?', invisiblePrompt: '숨김 모드 3000 Stars 결제?', hideAgePrompt: '나이 숨기기 1000 Stars 결제?', filterSubPrompt: '필터 변경 구독 필요.', paymentCancelled: '결제 취소됨.', errorSaving: '오류:', fillAll: '필수 항목을 입력해주세요.',
@@ -134,7 +138,8 @@ const translations: Record<LangKey, Record<string, string>> = {
     privateNote: '개인 메모', notePlaceholder: '개인 메모 (최대 100자)',
     forceReset: '강제 초기화', gamesApps: '게임 & 앱',
     selectedUser: '선택한 사용자: {n}', profileReset: '프로필이 초기화되었습니다.', resetFailed: '초기화에 실패했습니다.',
-    forceResetConfirm: '{n} 님의 프로필을 강제 초기화할까요?'
+    forceResetConfirm: '{n} 님의 프로필을 강제 초기화할까요?',
+    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: '관리자 메뉴', adminVipList: '관리자 / VIP 목록', owner: '소유자', addRole: '추가', removeRole: '삭제', roleUsernamePlaceholder: '사용자명 (@ 제외)', roleUpdateFailed: '업데이트 실패.', ownerImmutable: '소유자 권한은 변경할 수 없습니다.', noRolesYet: '아직 관리자나 VIP가 없습니다.', close: '닫기'
   },
   'ru': {
     loading: 'Загрузка...', locationRequired: 'Требуется геолокация', locationMessage: 'Разрешение на геолокацию обязательно. Включите доступ к местоположению в браузере или настройках Telegram и перезапустите приложение.', accessDenied: 'Доступ запрещен', underageMessage: 'Приложение только для взрослых. Доступ к этому аккаунту заблокирован из-за возрастных ограничений.', completeProfile: 'Заполните профиль', profileWarning: 'Предупреждение: это нельзя изменить. Введённые здесь данные влияют на то, кого вы видите и с кем взаимодействуете.', dob: 'Дата рождения:', imA: 'Я', seeking: 'ищу', man: 'мужчину', woman: 'женщину', nonBinary: 'небинарную', men: 'мужчин', women: 'женщин', everyone: 'всех', height: 'Рост:', selectHeight: 'Выберите рост', weight: 'Вес:', selectWeight: 'Выберите вес', tapToChange: 'нажмите, чтобы изменить:', mode: 'Режим:', browsingOnly: 'Только просмотр', onlineOnly: 'Только онлайн', meetUp: 'Встреча', saveProfile: 'Сохранить', whosNearby: 'Рядом', filter: 'Фильтр', refresh: 'Обновить', grid: 'Сетка', chat: 'Чат', map: 'Карта', wallet: 'Кошелек', filterUsers: 'Фильтры', ageRange: 'Возраст', preferenceMatcher: 'Подбор по предпочтениям', rolePreference: 'Роль', safetyPreference: 'Безопасность', playstylePreference: 'Стиль', groupSize: 'Размер группы', applyFilters: 'Применить', ageHidden: 'Возраст скрыт', ageShown: 'Возраст виден', expires: 'Истекает:', sendMessage: 'Сообщение', unlockPreference: 'Изменить профиль', iGotStuff: 'У меня есть стафф', unlockPreferencePrompt: 'Изменить профиль за 1000 Stars?', invisiblePrompt: 'Невидимка за 3000 Stars?', hideAgePrompt: 'Скрыть возраст за 1000 Stars?', filterSubPrompt: 'Требуется подписка на фильтры.', paymentCancelled: 'Оплата отменена.', errorSaving: 'Ошибка:', fillAll: 'Заполните все поля.',
@@ -151,7 +156,8 @@ const translations: Record<LangKey, Record<string, string>> = {
     privateNote: 'Личная заметка', notePlaceholder: 'Личная заметка (макс. 100 симв.)',
     forceReset: 'Принуд. сброс', gamesApps: 'Игры и приложения',
     selectedUser: 'Выбран пользователь: {n}', profileReset: 'Профиль сброшен.', resetFailed: 'Ошибка сброса.',
-    forceResetConfirm: 'Сбросить профиль {n}?'
+    forceResetConfirm: 'Сбросить профиль {n}?',
+    vip: 'VIP', vipUnlimited: 'VIP · ∞', adminMenu: 'Меню админа', adminVipList: 'Список админ / VIP', owner: 'Владелец', addRole: 'Добавить', removeRole: 'Удалить', roleUsernamePlaceholder: 'имя пользователя (без @)', roleUpdateFailed: 'Ошибка обновления.', ownerImmutable: 'Роль владельца изменить нельзя.', noRolesYet: 'Пока нет админов или VIP.', close: 'Закрыть'
   }
 };
 
@@ -363,6 +369,14 @@ export default function App() {
   const [isLocationDenied, setIsLocationDenied] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isVip, setIsVip] = useState<boolean>(false);
+  // VIP unlocks every paid function indefinitely, just like admin.
+  const paidUnlocked = isAdmin || isVip;
+  const [roles, setRoles] = useState<{ username: string; role: string }[]>([]);
+  const [showAdminMenu, setShowAdminMenu] = useState<boolean>(false);
+  const [showRolesModal, setShowRolesModal] = useState<boolean>(false);
+  const [newRoleUsername, setNewRoleUsername] = useState<string>('');
+  const [newRole, setNewRole] = useState<'admin' | 'vip'>('vip');
   const [showStuffBubble, setShowStuffBubble] = useState<boolean>(false);
   const [hasFilterSub, setHasFilterSub] = useState<boolean>(false);
   const [filterSubUntil, setFilterSubUntil] = useState<number>(0);
@@ -519,8 +533,20 @@ export default function App() {
         else if (tgLangCode.startsWith('ru')) { setLang('ru'); }
         else { setLang('en'); }
         const userUsername = tgUser?.username || '';
-        const checkIsAdmin = userUsername.toLowerCase() === 'mileschan852' || userUsername.toLowerCase() === 'hkmembersonly';
+        // Load the managed admin/VIP list so entitlements survive across sessions.
+        let rolesList: { username: string; role: string }[] = [];
+        if (supabase) {
+          const { data: rolesData } = await supabase.from('app_roles').select('username, role');
+          if (Array.isArray(rolesData)) rolesList = rolesData as { username: string; role: string }[];
+        }
+        setRoles(rolesList);
+        const unameLower = userUsername.toLowerCase();
+        const tableRole = rolesList.find((r) => (r.username || '').toLowerCase() === unameLower)?.role;
+        // Owner (mileschan852) and hkmembersonly are always admin; everyone else
+        // derives their role from the managed list.
+        const checkIsAdmin = unameLower === 'mileschan852' || unameLower === 'hkmembersonly' || tableRole === 'admin';
         setIsAdmin(checkIsAdmin);
+        setIsVip(tableRole === 'vip');
         const userId = tgUser?.id ? `tg_${tgUser.id}` : ('user_' + Math.random().toString(36).substring(2, 9));
         localStorage.setItem('whos_nearby_user_id', userId);
         const userName = tgUser?.first_name || (tgUser?.id ? `User ${tgUser.id}` : 'Anonymous');
@@ -633,7 +659,7 @@ export default function App() {
       persistFilterPrefs({ prefMatcherOn: next });
       return;
     }
-    if (!isAdmin && !(filterSubUntil > Date.now()) && !hasFilterSub) {
+    if (!paidUnlocked && !(filterSubUntil > Date.now()) && !hasFilterSub) {
       const ok = await verifyFilterSubscription();
       if (!ok) return;
     }
@@ -642,7 +668,7 @@ export default function App() {
   };
 
   const handleToggleFilterValue = async (key: 'role' | 'safety' | 'playstyle' | 'howMany' | 'where') => {
-    if (!isAdmin && !(filterSubUntil > Date.now()) && !hasFilterSub) {
+    if (!paidUnlocked && !(filterSubUntil > Date.now()) && !hasFilterSub) {
       const ok = await verifyFilterSubscription();
       if (!ok) return;
     }
@@ -706,7 +732,7 @@ export default function App() {
   };
 
   const verifyFilterSubscription = async (): Promise<boolean> => {
-    if (isAdmin || hasFilterSub) return true;
+    if (paidUnlocked || hasFilterSub) return true;
     const confirmed = window.confirm(t('filterSubPrompt'));
     if (!confirmed) return false;
     if (!PAYMENT_WORKER_URL) { console.error('VITE_PAYMENT_WORKER_URL is not set'); return false; }
@@ -743,7 +769,7 @@ export default function App() {
       const raw = localStorage.getItem(FILTER_PREFS_KEY);
       if (!raw) { setFilterAgeOn(false); setFilterHeightOn(false); setFilterPrefMatcherOn(true); return; }
       const saved = JSON.parse(raw);
-      const hasSub = isAdmin || (subUntil > Date.now());
+      const hasSub = paidUnlocked || (subUntil > Date.now());
       if (!hasSub) { setFilterAgeOn(false); setFilterHeightOn(false); setFilterPrefMatcherOn(true); return; }
       setFilterAgeOn(!!saved.ageOn);
       if (typeof saved.ageMin === 'number') setFilterAgeMin(saved.ageMin);
@@ -762,7 +788,7 @@ export default function App() {
 
   const persistFilterPrefs = (next: any) => {
     try {
-      const hasSub = isAdmin || (filterSubUntilRef.current > Date.now());
+      const hasSub = paidUnlocked || (filterSubUntilRef.current > Date.now());
       if (!hasSub) return;
       const saved = { ageOn: next.ageOn !== undefined ? next.ageOn : filterAgeOn, ageMin: next.ageMin !== undefined ? next.ageMin : filterAgeMin, ageMax: next.ageMax !== undefined ? next.ageMax : filterAgeMax, heightOn: next.heightOn !== undefined ? next.heightOn : filterHeightOn, heightMin: next.heightMin !== undefined ? next.heightMin : filterHeightMin, heightMax: next.heightMax !== undefined ? next.heightMax : filterHeightMax, prefMatcherOn: next.prefMatcherOn !== undefined ? next.prefMatcherOn : filterPrefMatcherOn, roleVal: next.roleVal !== undefined ? next.roleVal : filterRoleVal, safetyVal: next.safetyVal !== undefined ? next.safetyVal : filterSafetyVal, playstyleVal: next.playstyleVal !== undefined ? next.playstyleVal : filterPlaystyleVal, howManyVal: next.howManyVal !== undefined ? next.howManyVal : filterHowManyVal, whereVal: next.whereVal !== undefined ? next.whereVal : filterWhereVal };
       localStorage.setItem(FILTER_PREFS_KEY, JSON.stringify(saved));
@@ -773,7 +799,7 @@ export default function App() {
     if (!currentUser || !supabase) return;
     let nextVal = !gridVisible;
     let newInvisibleExpiry = invisibleExpiry;
-    if (!nextVal && !isAdmin) {
+    if (!nextVal && !paidUnlocked) {
       const now = new Date();
       const isExpired = !invisibleExpiry || new Date(invisibleExpiry).getTime() < now.getTime();
       if (isExpired) {
@@ -829,7 +855,7 @@ export default function App() {
   const handleHideAgeToggle = async () => {
     if (!currentUser || !supabase) return;
     let nextHide = !hideAge; let newExpiry = hideAgeExpiry;
-    if (nextHide && !isAdmin) {
+    if (nextHide && !paidUnlocked) {
       const now = new Date(); const isExpired = !hideAgeExpiry || new Date(hideAgeExpiry).getTime() < now.getTime();
       if (isExpired) {
         const confirmed = window.confirm(t('hideAgePrompt')); if (!confirmed) return;
@@ -858,7 +884,7 @@ export default function App() {
 
   const handleResetProfile = async () => {
     if (!currentUser) return;
-    if (isAdmin) { setShowProfileEditModal(true); return; }
+    if (paidUnlocked) { setShowProfileEditModal(true); return; }
     const confirmed = window.confirm(t('unlockPreferencePrompt'));
     if (!confirmed) return;
     if (!PAYMENT_WORKER_URL) { console.error('VITE_PAYMENT_WORKER_URL is not set'); return; }
@@ -1032,8 +1058,43 @@ export default function App() {
     } catch (e) { console.error(e); alert(t('resetFailed')); }
   };
 
+  const loadRoles = async () => {
+    if (!supabase) return;
+    const { data } = await supabase.from('app_roles').select('username, role, created_at').order('created_at', { ascending: true });
+    if (Array.isArray(data)) setRoles(data as { username: string; role: string }[]);
+  };
+
+  const handleAddRole = async () => {
+    const uname = newRoleUsername.trim().toLowerCase().replace(/^@/, '');
+    if (!uname) return;
+    if (!PAYMENT_WORKER_URL) { console.error('VITE_PAYMENT_WORKER_URL is not set'); return; }
+    if (uname === 'mileschan852') { alert(t('ownerImmutable')); return; }
+    try {
+      const res = await fetch(`${PAYMENT_WORKER_URL}/api/roles`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add', username: uname, role: newRole, initData: window.Telegram?.WebApp?.initData || '' }),
+      });
+      if (!res.ok) { alert(t('roleUpdateFailed')); return; }
+      setNewRoleUsername('');
+      await loadRoles();
+    } catch (e) { console.error(e); alert(t('roleUpdateFailed')); }
+  };
+
+  const handleRemoveRole = async (username: string) => {
+    if (!PAYMENT_WORKER_URL) { console.error('VITE_PAYMENT_WORKER_URL is not set'); return; }
+    if (username.toLowerCase() === 'mileschan852') { alert(t('ownerImmutable')); return; }
+    try {
+      const res = await fetch(`${PAYMENT_WORKER_URL}/api/roles`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove', username, initData: window.Telegram?.WebApp?.initData || '' }),
+      });
+      if (!res.ok) { alert(t('roleUpdateFailed')); return; }
+      await loadRoles();
+    } catch (e) { console.error(e); alert(t('roleUpdateFailed')); }
+  };
+
   const filterSubStatusInfo = (() => {
-    if (!isAdmin && !hasFilterSub && !(filterSubUntil > Date.now())) return { label: t('unsubscribed'), color: '#888' };
+    if (!paidUnlocked && !hasFilterSub && !(filterSubUntil > Date.now())) return { label: t('unsubscribed'), color: '#888' };
     if (filterSubUntil > Date.now()) return { label: t('subscribedUntil').replace('{d}', new Date(filterSubUntil).toLocaleDateString()), color: '#4ade80' };
     return { label: t('expired'), color: '#e11d48' };
   })();
@@ -1128,7 +1189,7 @@ export default function App() {
           </button>
           {showFilterDropdown && (
             <div style={{ position: 'absolute', top: '44px', right: '0', zIndex: 2000, backgroundColor: '#1e1e1e', border: '1px solid #444', borderRadius: '8px', padding: '12px', width: '280px', boxShadow: '0 6px 20px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>{t('filterUsers')}<span style={{ fontSize: '11px', fontWeight: 'normal', color: filterSubStatusInfo.color }}>{isAdmin ? t('admin') : `${filterSubStatusInfo.label}${filterSubUntil > Date.now() ? ` · ${t('expires')} ${new Date(filterSubUntil).toLocaleDateString()}` : ''}`}</span></div>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>{t('filterUsers')}<span style={{ fontSize: '11px', fontWeight: 'normal', color: isAdmin ? '#4ade80' : isVip ? '#f5c518' : filterSubStatusInfo.color }}>{isAdmin ? t('admin') : isVip ? t('vipUnlimited') : `${filterSubStatusInfo.label}${filterSubUntil > Date.now() ? ` · ${t('expires')} ${new Date(filterSubUntil).toLocaleDateString()}` : ''}`}</span></div>
               <div style={{ borderTop: '1px solid #333', paddingTop: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => handleToggleFilterItem('age')}>
                   <input type="checkbox" checked={filterAgeOn} onChange={() => {}} style={{ width: '16px', height: '16px', accentColor: '#007bff', cursor: 'pointer' }} />
@@ -1237,6 +1298,16 @@ export default function App() {
                 <button type="button" onClick={(e) => { e.stopPropagation(); handleResetProfile(); }} style={{ padding: '2px 8px', backgroundColor: '#1d4ed8', border: '1px solid #444', borderRadius: '6px', fontSize: '12px', color: '#fff', cursor: 'pointer' }} title={t('resetProfile')}>{t('resetProfile')}</button>
               </div>
             )}
+            {isViewingSelf && isAdmin && (
+              <div style={{ position: 'absolute', top: '14px', left: '14px', zIndex: 6 }}>
+                <button type="button" onClick={(e) => { e.stopPropagation(); setShowAdminMenu((v) => !v); }} style={{ width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#4b5563', border: '1px solid #6b7280', borderRadius: '6px', fontSize: '16px', color: '#fff', cursor: 'pointer', lineHeight: 1 }} title={t('adminMenu')} aria-label={t('adminMenu')}>⚙</button>
+                {showAdminMenu && (
+                  <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '34px', left: 0, backgroundColor: '#1e1e1e', border: '1px solid #444', borderRadius: '8px', padding: '6px', minWidth: '190px', boxShadow: '0 6px 20px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <button type="button" onClick={() => { setShowAdminMenu(false); setShowRolesModal(true); loadRoles(); }} style={{ padding: '9px 10px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '6px', fontSize: '13px', color: '#fff', cursor: 'pointer', textAlign: 'left' }}>{t('adminVipList')}</button>
+                  </div>
+                )}
+              </div>
+            )}
             <div style={{ width: '40px', height: '4px', backgroundColor: '#444', borderRadius: '2px', marginBottom: '16px' }} />
             <div style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ width: '90px', height: '90px', borderRadius: '50%', overflow: 'hidden', backgroundColor: '#222', border: '3px solid #007bff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px', filter: passesFilterForActive ? 'none' : 'grayscale(100%)' }}>
@@ -1314,6 +1385,46 @@ export default function App() {
           <div style={{ position: 'absolute', bottom: 0, left: '50%', right: 0, height: '3px', backgroundColor: mapVisible ? '#4ade80' : '#ff4d4d' }} />
         </button>
       </footer>
+
+      {showRolesModal && (
+        <div onClick={() => setShowRolesModal(false)} style={{ position: 'fixed', inset: 0, zIndex: 3000, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: '420px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', backgroundColor: '#1e1e1e', border: '1px solid #444', borderRadius: '12px', boxShadow: '0 10px 40px rgba(0,0,0,0.7)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid #333' }}>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#fff' }}>{t('adminVipList')}</h2>
+              <button type="button" onClick={() => setShowRolesModal(false)} style={{ background: 'none', border: 'none', color: '#888', fontSize: '22px', cursor: 'pointer', lineHeight: 1 }} aria-label={t('close')}>×</button>
+            </div>
+
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid #333', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <input value={newRoleUsername} onChange={(e) => setNewRoleUsername(e.target.value)} placeholder={t('roleUsernamePlaceholder')} style={{ width: '100%', boxSizing: 'border-box', padding: '9px 10px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '6px', color: '#fff', fontSize: '13px' }} />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <select value={newRole} onChange={(e) => setNewRole(e.target.value as 'admin' | 'vip')} style={{ flex: 1, padding: '9px 10px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '6px', color: '#fff', fontSize: '13px' }}>
+                  <option value="vip">{t('vip')}</option>
+                  <option value="admin">{t('admin')}</option>
+                </select>
+                <button type="button" onClick={handleAddRole} style={{ padding: '9px 16px', backgroundColor: '#1d4ed8', border: '1px solid #1d4ed8', borderRadius: '6px', color: '#fff', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>{t('addRole')}</button>
+              </div>
+            </div>
+
+            <div style={{ overflowY: 'auto', padding: '8px 16px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px', backgroundColor: '#232323', border: '1px solid #333', borderRadius: '8px', opacity: 0.55 }}>
+                <span style={{ fontSize: '13px', color: '#aaa' }}>@mileschan852 <span style={{ fontSize: '11px', color: '#f5c518' }}>· {t('owner')}</span></span>
+                <span style={{ fontSize: '11px', color: '#666' }}>{t('admin')}</span>
+              </div>
+              {roles
+                .filter((r) => (r.username || '').toLowerCase() !== 'mileschan852')
+                .map((r) => (
+                  <div key={r.username} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px', backgroundColor: '#232323', border: '1px solid #333', borderRadius: '8px' }}>
+                    <span style={{ fontSize: '13px', color: '#fff' }}>@{r.username} <span style={{ fontSize: '11px', color: r.role === 'admin' ? '#4ade80' : '#f5c518' }}>· {r.role === 'admin' ? t('admin') : t('vip')}</span></span>
+                    <button type="button" onClick={() => handleRemoveRole(r.username)} style={{ padding: '4px 10px', backgroundColor: '#7f1d1d', border: '1px solid #991b1b', borderRadius: '6px', color: '#fff', fontSize: '12px', cursor: 'pointer' }}>{t('removeRole')}</button>
+                  </div>
+                ))}
+              {roles.filter((r) => (r.username || '').toLowerCase() !== 'mileschan852').length === 0 && (
+                <div style={{ fontSize: '12px', color: '#777', textAlign: 'center', padding: '10px' }}>{t('noRolesYet')}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

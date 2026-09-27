@@ -103,24 +103,48 @@ not use it. It STILL lingers in .env.example, public/tonconnect-manifest.json
 and src/main.tsx (TONCONNECT_MANIFEST_URL) and must be repointed on any rebuild
 (see OPEN ITEMS).
 
-Admin identity (two independent mechanisms):
-  - Frontend (UI only): admin is granted by Telegram USERNAME — 'mileschan852'
-    or 'hkmembersonly' (case-insensitive). Sets isAdmin, which unlocks the
-    filter menu for free, the Force Reset button, and free profile editing.
-    This is a client-side convenience gate only; it grants no server authority.
-  - Worker (authoritative): /api/reset-profile verifies the caller's Telegram
-    initData (HMAC signature + freshness), decodes the Telegram user id from
-    the signed payload, and requires it to equal the ADMIN_ID constant
-    (1231127407). A client-supplied caller_id is never trusted. There is no
-    longer a mass reset-all-underage endpoint; clearing the underage flag is
-    done per-profile through /api/reset-profile.
+Roles: admin, VIP, and the managed list (app_roles table):
+  - Two always-admin usernames are hard-coded: the owner 'mileschan852' and
+    'hkmembersonly' (case-insensitive). The owner can never be demoted.
+  - Beyond those, admin/VIP status is stored per Telegram USERNAME in the
+    app_roles table (role = 'admin' | 'vip'), so entitlements survive across
+    sessions and are shared across all clients.
+  - VIP = all PAID functions unlocked indefinitely (hide age, invisible mode,
+    filter subscription, profile editing, extra row). VIP does NOT grant admin
+    powers. The frontend exposes a `paidUnlocked = isAdmin || isVip` flag that
+    replaces the old admin-only checks on every paid gate.
+  - Admin menu: a button appears at the TOP-LEFT of the admin's OWN profile
+    card only. It opens a pop menu of admin-only functions, currently the
+    Admin/VIP list manager. That modal lists all current admin/VIP users with
+    the owner (mileschan852) pinned as the first entry, greyed out and
+    unchangeable; other entries can be removed, and new ones added by username
+    with a chosen role.
+  - Frontend gating is a client-side convenience only; it grants no server
+    authority.
+  - Worker (authoritative): admin-only endpoints verify the caller's Telegram
+    initData (HMAC signature + freshness) and decode the Telegram user id /
+    username from the signed payload. isAdminCaller() accepts the ADMIN_ID
+    constant (1231127407), the always-admin usernames, or a username stored as
+    role=admin in app_roles. A client-supplied caller_id is never trusted.
+    /api/reset-profile requires ADMIN_ID; /api/roles (add/remove) requires
+    isAdminCaller and refuses to mutate the owner. Clearing the underage flag is
+    done per-profile through /api/reset-profile (there is no mass reset).
 
 ================================================================================
 4. DATABASE (Supabase PostgreSQL) — EVERY ITEM AND WHAT IT IS FOR
 ================================================================================
 Migrations in supabase/migrations/, run in order 001 -> 002 -> 003 ->
-004_rls_hardening -> 005_webhook_secret in the Supabase SQL Editor. All are
-idempotent.
+004_rls_hardening -> 005_webhook_secret -> 006_app_roles in the Supabase SQL
+Editor. All are idempotent.
+
+--- TABLE: public.app_roles (managed admin/VIP list, migration 006) ---
+  username   — primary key, Telegram @username normalized (lowercase, no '@')
+  role       — 'admin' (all admin powers) | 'vip' (all paid functions unlocked
+               indefinitely; no admin powers)
+  created_at — timestamptz, used to order the list (owner pinned first in UI)
+  RLS: SELECT open to everyone (clients derive entitlements); writes only via
+  the worker service-role key. Owner 'mileschan852' is admin in code and is
+  never stored/removable here.
 
 --- TABLE: public.profiles (one row per user; id = 'tg_<telegram_id>') ---
   id                 — primary key, text, 'tg_<telegram_id>' (or local UUID
@@ -255,7 +279,14 @@ Age is enforced server-side via trigger, not RLS.
                          Telegram id equals ADMIN_ID (1231127407). Wipes
                          {target_id}'s profile to defaults, including clearing
                          is_underage. (There is no reset-all-underage endpoint.)
-  GET  /api/health, /health — {ok:true, version:'rls-hardened-1.1'}
+  GET  /api/roles      — list managed admin/VIP entries (public read), ordered
+                         by created_at.
+  POST /api/roles      — ADMIN-ONLY: requires valid initData and isAdminCaller
+                         (ADMIN_ID, an always-admin username, or role=admin in
+                         app_roles). Body { action:'add'|'remove', username,
+                         role:'admin'|'vip' }. Refuses to mutate the owner
+                         (mileschan852). Usernames normalized (lowercase, no @).
+  GET  /api/health, /health — {ok:true, version:'rls-hardened-1.2'}
 
 Purchasable types (ALLOWED_TYPES, all XTR/Stars):
   hide_age           1000 — hide age 30 days (hide_age + hide_age_expiry)
@@ -462,14 +493,17 @@ Hardened (done):
   - Replay-attack dedupe: transactions keyed by provider/telegram payment
     charge ids (unique); duplicate/rejected inserts abort with HTTP 400.
   - 18+ gate enforced server-side by the enforce_age trigger.
+  - Admin endpoints are initData-authenticated: /api/reset-profile requires the
+    decoded id to equal ADMIN_ID; /api/roles requires isAdminCaller (ADMIN_ID,
+    an always-admin username, or role=admin in app_roles). A client-supplied
+    caller_id is never trusted, and the owner role is immutable.
 Still weak (known, unfixed):
   - The Worker still falls back to SUPABASE_ANON_KEY when
     SUPABASE_SERVICE_ROLE_KEY is not set; without the service key, hardened RLS
     blocks its writes — set the service key.
-  - Admin reset endpoints (/api/reset-profile, /api/reset-all-underage) guard
-    only on a client-supplied caller_id === 1231127407 in the request body —
-    trivially spoofable; they do NOT verify initData.
-  - Frontend admin is username-based and client-side only.
+  - Frontend admin/VIP gating (isAdmin/isVip/paidUnlocked) is client-side only
+    convenience; server authority always comes from the initData-verified
+    worker endpoints.
   - start_param / mode=gay is client-side only: anyone opening the default
     entry can pick any gender; no server-side gaymode enforcement.
   - CORS allows all origins on the Worker.
