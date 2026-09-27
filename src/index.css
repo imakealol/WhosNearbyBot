@@ -11,3 +11,12 @@ html, body, #root {
   background-color: #121212;
   color: #ffffff;
 }
+
+/* Dark map: recolor the free OpenStreetMap tiles client-side (no API key needed). */
+.leaflet-container {
+  background: #121212;
+}
+
+.dark-map-tiles {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) grayscale(0.2);
+}

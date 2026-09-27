@@ -1,0 +1,554 @@
+Project Blueprint: "Who's Nearby" / WhosNearbyBot (Telegram Mini App)
+
+This document is the complete handoff spec: architecture, all current features, every database item and what it is for, entry points, and where the secrets live. No keys or tokens are stored here. It reflects the LATEST state of the repo (main branch).
+
+================================================================================
+1. WHAT THIS PROJECT IS
+================================================================================
+A Telegram Mini App for finding nearby Telegram users (dating/hookup oriented,
+18+). React SPA frontend + Cloudflare Worker API backend + Supabase PostgreSQL.
+Monetized via Telegram Stars (XTR) in-app purchases.
+
+Repo layout (this directory):
+  src/App.tsx          — the entire main app (~1360 lines, monolithic component:
+                         init, onboarding, grid/map, filters, payments, profile
+                         card, games menu, footer nav, i18n table)
+  src/main.tsx         — React entry; wraps App in TonConnectUIProvider (Telegram
+                         Wallet is the ONLY wallet offered)
+  src/index.css        — minimal global reset
+  src/pages/MapPage.tsx  — PRESENT but DEAD CODE (never imported; the live map is
+                          rendered inline in App.tsx via react-leaflet). Safe to
+                          delete; kept in the tree only as reference.
+  src/pages/MintPage.tsx — PRESENT but DEAD CODE (never imported; NFT/TON mint
+                          page, legacy monetization, NOT the main Stars flow).
+                          Safe to delete; kept in the tree only as reference.
+  src/assets/          — Bustagames.jpg, Photify.jpg, Tonflip.jpg (games rail
+                         icons), hero.png, vite.svg
+  worker.js            — canonical Cloudflare Worker (API-only, deployed as
+                         "whosnearby-bot" per wrangler.toml)
+  supabase/migrations/ — 001, 002, 003, 004_rls_hardening,
+                         004_webhook_secret SQL migrations (run in order)
+  public/tonconnect-manifest.json — TON wallet connect manifest (STILL points at
+                         a dead host — see OPEN ITEMS)
+  index.html           — Vite entry (loads Telegram Web App SDK)
+  .env.example         — names of all env vars (placeholders; worker URL is stale)
+  wrangler.toml        — Cloudflare Worker config (no secrets in it)
+  vercel.json          — alternate hosting config (Vite SPA rewrite to index.html)
+  vite.config.ts       — base: './' so GitHub Pages resolves relative asset paths
+  set_supabase_secrets.cjs — helper to push worker secrets (not committed logic)
+  .github/workflows/deploy.yml — GitHub Pages build/deploy
+  blueprint.txt        — THIS FILE (handoff spec)
+  monolithic-source.txt — a text dump of ALL source in one file (reference copy,
+                         regenerated from the live files)
+
+================================================================================
+2. ENTRY POINTS (there are exactly two)
+================================================================================
+A. Default entry — bot @WhosNearbyBot
+   URL form: https://t.me/WhosNearbyBot/app
+   start_param is absent/empty -> getActiveBotKey() returns 'botB'.
+   Gender and seeking are freely selectable in onboarding.
+
+B. Men-only entry — bot @HKMODate_bot  (RENAMED from the old @HKMO_D_Bot)
+   URL form: https://t.me/HKMODate_bot/app?startapp=gaymode
+   start_param === 'gaymode' -> getActiveBotKey() returns 'botA' and
+   isHkModEntry is true. The URL query ?mode=gay ALSO activates gaymode
+   (fallback when start_param is unavailable, e.g. direct browser testing).
+   On first-time profile creation the app HARD-LOCKS
+   gender='man', seeking='men'; the gender/seeking dropdowns are disabled and
+   preference tags (role/safety/playstyle/how-many/where) are only collected
+   for man-seeking-man profiles (non-man profiles use non_man_mode instead).
+
+How it handles both: everything reads
+window.Telegram.WebApp.initDataUnsafe.start_param (with the ?mode=gay query
+fallback). There is no server-side distinction between the two entries — both
+share the same Supabase database, same Worker, same profiles table. The only
+differences are client-side (gender lock, which bot key is active, and the
+Chat-button target).
+
+Outside Telegram (plain browser), the app falls back to a persistent local
+UUID as the user id instead of tg_<telegram_id>.
+
+Authentication: the frontend sends Telegram initData; the Worker VERIFIES the
+initData HMAC (see section 5/9) and, on /api/auth, upserts a profile with id
+tg_<id>, name/username/avatar from Telegram, and stamps last_seen.
+
+================================================================================
+3. SECRETS — WHERE THEY LIVE (names only, never values)
+================================================================================
+Frontend (Vite, set at BUILD time — GitHub Actions secrets or local .env,
+see .env.example):
+  VITE_SUPABASE_URL          — Supabase project URL (public by design)
+  VITE_SUPABASE_ANON_KEY     — Supabase anon key (public by design, RLS governs)
+  VITE_PAYMENT_WORKER_URL    — full URL of the deployed Worker (payment/API)
+
+Worker (Cloudflare — set with `wrangler secret put` or hosting env vars,
+NEVER committed; wrangler.toml deliberately contains none):
+  TELEGRAM_BOT_TOKEN — bot token (createInvoiceLink, answerPreCheckoutQuery,
+                       and initData HMAC verification)
+  SUPABASE_URL       — Supabase project URL
+  SUPABASE_ANON_KEY  — anon key for Supabase REST reads from the Worker
+  SUPABASE_SERVICE_ROLE_KEY — service-role key; used for Worker WRITES when
+                       present (since migration 004 the worker prefers it for
+                       write operations; falls back to anon if unset — but with
+                       hardened RLS anon writes are blocked, so this MUST be set)
+  TELEGRAM_WEBHOOK_SECRET — secret_token passed to setWebhook; the worker
+                       rejects any /api/webhook or /telegram-webhook POST whose
+                       X-Telegram-Bot-Api-Secret-Token header does not match
+                       (constant-time compare; 403 Forbidden otherwise)
+
+Deployment URL of the Worker: https://whosnearbybot.mileschan852.workers.dev
+The old teleclaw-dispatch.silent-flower-a7c2.workers.dev/... host is DEAD — do
+not use it. It STILL lingers in .env.example, public/tonconnect-manifest.json
+and src/main.tsx (TONCONNECT_MANIFEST_URL) and must be repointed on any rebuild
+(see OPEN ITEMS).
+
+Roles: admin, VIP, and the managed list (app_roles table):
+  - Two always-admin usernames are hard-coded: the owner 'mileschan852' and
+    'hkmembersonly' (case-insensitive). The owner can never be demoted.
+  - Beyond those, admin/VIP status is stored per Telegram USERNAME in the
+    app_roles table (role = 'admin' | 'vip'), so entitlements survive across
+    sessions and are shared across all clients.
+  - VIP = all PAID functions unlocked indefinitely (hide age, invisible mode,
+    filter subscription, profile editing, extra row). VIP does NOT grant admin
+    powers. The frontend exposes a `paidUnlocked = isAdmin || isVip ||
+    globalVipActive` flag that replaces the old admin-only checks on every paid
+    gate.
+  - Global VIP (app_settings.global_vip_until, migration 007): an admin can
+    grant VIP to EVERY user for a selectable window (1 week / 1 month /
+    3 months / 6 months / 1 year). While the stored epoch-ms timestamp is in
+    the future, all clients treat globalVipActive as true and unlock every paid
+    function; it also shows as "VIP · Expires <date>" in the filter status.
+    Admins can revoke it (sets the value to 0).
+  - Admin menu: a button appears at the TOP-LEFT of the admin's OWN profile
+    card only. It opens a pop menu of admin-only functions:
+      1. Admin/VIP list manager — a modal listing all current admin/VIP users
+         with the owner (mileschan852) pinned as the first entry, greyed out and
+         unchangeable; other entries can be removed, and new ones added by
+         username with a chosen role.
+      2. Grant VIP to all — a submenu of period options (1w/1mo/3mo/6mo/1y) that
+         sets the global VIP window, plus a Revoke option when active.
+      3. Force reset all users — clears the required profile fields for every
+         row so the "complete your info" setup screen appears on each user's
+         next login.
+  - Frontend gating is a client-side convenience only; it grants no server
+    authority.
+  - Worker (authoritative): admin-only endpoints verify the caller's Telegram
+    initData (HMAC signature + freshness) and decode the Telegram user id /
+    username from the signed payload. isAdminCaller() accepts the ADMIN_ID
+    constant (1231127407), the always-admin usernames, or a username stored as
+    role=admin in app_roles. A client-supplied caller_id is never trusted.
+    /api/reset-profile requires ADMIN_ID; /api/roles (add/remove),
+    /api/global-vip, and /api/reset-all require isAdminCaller; /api/roles
+    refuses to mutate the owner. Clearing the underage flag is done per-profile
+    through /api/reset-profile (there is no mass underage reset).
+
+================================================================================
+4. DATABASE (Supabase PostgreSQL) — EVERY ITEM AND WHAT IT IS FOR
+================================================================================
+Migrations in supabase/migrations/, run in order 001 -> 002 -> 003 ->
+    004_rls_hardening -> 005_webhook_secret -> 006_app_roles -> 007_app_settings
+    in the Supabase SQL
+Editor. All are idempotent.
+
+--- TABLE: public.app_roles (managed admin/VIP list, migration 006) ---
+  username   — primary key, Telegram @username normalized (lowercase, no '@')
+  role       — 'admin' (all admin powers) | 'vip' (all paid functions unlocked
+               indefinitely; no admin powers)
+  created_at — timestamptz, used to order the list (owner pinned first in UI)
+  RLS: SELECT open to everyone (clients derive entitlements); writes only via
+  the worker service-role key. Owner 'mileschan852' is admin in code and is
+  never stored/removable here.
+
+--- TABLE: public.profiles (one row per user; id = 'tg_<telegram_id>') ---
+  id                 — primary key, text, 'tg_<telegram_id>' (or local UUID
+                       outside Telegram)
+  name               — display name (Telegram first_name)
+  username           — Telegram @username (used to build t.me DM links)
+  avatar             — Telegram profile photo URL
+  lat, lng           — last shared GPS coordinates; null = never shared
+  last_seen          — timestamptz, updated on auth/profile writes (activity)
+  gender             — 'man' | 'woman' | 'non-binary' (locked to 'man' in
+                       gaymode entry)
+  seeking            — who they seek ('men', etc.; locked to 'men' in gaymode)
+  dob                — ISO date-of-birth text; drives age + zodiac; source of
+                       the server-side 18+ gate. NEVER leaves the API (the
+                       worker strips dob and returns only derived age).
+  height             — formatted string like "1.8m (5ft 10in)"
+  weight             — formatted string like "80kg (176lbs)"
+  role_pref          — preference tag: Top / Bottom / Versatile / Side
+  safety_pref        — preference tag: Safe / Raw
+  playstyle_pref     — preference tag: Clean / Party / Party✓ (Party✓ = "I got
+                       stuff" indicator)
+  where_pref         — Host / Travel / null (=Anywhere)
+  how_many_pref      — 1on1 / group / DoesntMatter
+  non_man_mode       — stores the orientation/preference mode for profiles
+                       that are NOT man-seeking-man (those skip the tag prefs)
+  is_underage        — boolean, FORCED server-side by trigger from dob (see
+                       functions below); true = permanent lockout
+  hide_age           — boolean, paid: hides age on the public profile
+  grid_visible       — boolean, visible-to-others on the grid (green/red
+                       status light; 'invisible' purchase sets it false)
+  map_visible        — boolean, shares the user's pin on the map view
+  hide_age_expiry    — timestamptz, when the paid Hide Age (30 days) runs out
+  invisible_expiry   — timestamptz, when paid Invisible Mode (30 days) runs out
+  edit_profile_pass  — boolean, paid unlock allowing profile editing
+  edit_profile_expiry— timestamptz, when the edit pass expires
+  filter_sub_expiry  — timestamptz, paid Filter Subscription (30 days, can
+                       stack); gates the filter menu
+  private_notes      — text, ADMIN-ONLY private notes column (migration 003).
+                       NOTE: user-facing "private notes" on other users are NOT
+                       stored here — they live in Telegram CloudStorage, key
+                       whos_nearby_private_note_<viewer>_<target>, 100 chars max,
+                       bot-scoped per user, JSON payload {t:text, x:expiryMs}
+                       with a 30-day TTL.
+  updated_at         — timestamptz, touched by the enforce_age trigger
+
+RLS: enabled. Since migration 004_rls_hardening the anon role is READ-ONLY on
+profiles (SELECT only); INSERT/UPDATE are no longer open to anon. Writes go
+through the Worker using SUPABASE_SERVICE_ROLE_KEY (set it, or writes fail).
+Age is enforced server-side via trigger, not RLS.
+
+--- TABLE: public.transactions (payment receipts; idempotency source) ---
+  id                          — uuid PK
+  user_id                     — which user paid (tg_ payload id)
+  type                        — purchase type (see ALLOWED_TYPES below)
+  amount                      — Stars amount (bigint)
+  currency                    — 'XTR'
+  provider_payment_charge_id  — unique, Telegram provider charge id
+                                (dedupe key for idempotent webhook)
+  telegram_payment_charge_id  — unique, Telegram charge id
+  status                      — 'paid'
+  created_at                  — when
+
+--- TABLE: public.purchases (long-lived entitlements; OPTIONAL/legacy) ---
+  id, user_id, type, expires_at, created_at. Current features use the expiry
+  columns on profiles instead; this table exists for future use.
+
+--- TABLES referenced by the Worker but NOT in migrations (must exist) ---
+  public.flying_messages — id (uuid), tg_id, text (max 200), from_name,
+                           created_at. Global "flying messages" feed
+                           (GET/POST /api/messages).
+  public.raffle_state    — row id=1 with prize_name, tickets_sold.
+                           GET /api/raffle reads it.
+  If you rebuild the DB from migrations alone, create these two or those
+  endpoints will silently return empty/null.
+
+--- FUNCTIONS & TRIGGER (migration 002) ---
+  compute_age(dob text) -> int
+      Parses ISO dob text, returns age in years (null if unparseable).
+  enforce_age() trigger (profiles_enforce_age, BEFORE INSERT OR UPDATE)
+      Recomputes is_underage from dob on EVERY write so a client can never
+      forge the flag. Also stamps updated_at.
+  get_nearby_users(p_lat, p_lng, p_radius_meters, p_requesting_user_id, p_is_admin)
+      Server-side Haversine search. Never returns underage profiles (by dob
+      or flag), only grid_visible profiles unless admin/self, uses the
+      requester's stored coords as reference when available, returns
+      distance in meters, sorted nearest first. NOTE: the deployed Worker's
+      GET /api/nearby does the Haversine + age filter in JS instead of calling
+      this RPC; the RPC remains available for direct supabase.rpc() use.
+
+================================================================================
+5. WORKER API (worker.js) — ALL ENDPOINTS
+================================================================================
+  OPTIONS *            — CORS preflight (allow all origins)
+  POST /api/auth       — body {initData}; VERIFIES the initData HMAC against
+                         TELEGRAM_BOT_TOKEN (401 if missing/forged), then
+                         upserts profile from the Telegram user, returns the row
+  GET  /api/nearby     — query tg_id, lat, lng, radius (default 50000m);
+                         reads non-underage profiles with coords, computes
+                         JS-side Haversine + age, sorts by distance, and STRIPS
+                         dob before responding (only derived age leaves)
+  GET  /api/profile    — query tg_id; returns profile row (404 if missing)
+  POST /api/profile    — body {tg_id, ...fields, initData}; VERIFIES initData
+                         HMAC (401) AND that the tg_id inside initData matches
+                         the write (403); partial update; stamps last_seen
+  POST /api/invoice    — body {tg_id|userId, type, bot}; tg_id and userId are
+                         both accepted (alias key). Price is ALWAYS taken
+                         server-side from ALLOWED_TYPES — a client-supplied
+                         amount is ignored. Calls Telegram createInvoiceLink,
+                         returns {invoiceLink}. Legacy alias route
+                         /create-invoice also works (same handler). The frontend
+                         actually POSTs to /create-invoice.
+  POST /api/webhook    — Telegram payments webhook. REQUIRES the
+                         X-Telegram-Bot-Api-Secret-Token header to equal the
+                         TELEGRAM_WEBHOOK_SECRET worker secret (constant-time
+                         compare; 403 otherwise). Answers pre_checkout_query ok;
+                         on successful_payment AWAITs an insert into transactions
+                         (idempotent via charge ids). Duplicate/rejected inserts
+                         abort with HTTP 400 (replay-attack fix). Entitlement is
+                         then applied to the profile (30-day expiries;
+                         change_filter STACKS on any existing future expiry;
+                         change_preference is treated identically to
+                         edit_profile -> edit_profile_pass + edit_profile_expiry).
+  POST /telegram-webhook — SECOND webhook route with the same secret-token guard
+                         and the same payment-handling logic as /api/webhook
+                         (both routes exist in worker.js).
+  GET  /api/messages   — last N flying_messages (limit default 10)
+  POST /api/messages   — AUTHENTICATED: requires valid initData; sender id and
+                         name come from the signed payload (not the body). Text
+                         trimmed to 200 chars.
+  GET  /api/raffle     — raffle_state row (defaults if missing)
+  POST /api/reset-profile — ADMIN-ONLY: requires valid initData whose decoded
+                         Telegram id equals ADMIN_ID (1231127407). Wipes
+                         {target_id}'s profile to defaults, including clearing
+                         is_underage. (There is no reset-all-underage endpoint.)
+  GET  /api/roles      — list managed admin/VIP entries (public read), ordered
+                         by created_at.
+  POST /api/roles      — ADMIN-ONLY: requires valid initData and isAdminCaller
+                         (ADMIN_ID, an always-admin username, or role=admin in
+                         app_roles). Body { action:'add'|'remove', username,
+                         role:'admin'|'vip' }. Refuses to mutate the owner
+                         (mileschan852). Usernames normalized (lowercase, no @).
+  GET  /api/health, /health — {ok:true, version:'rls-hardened-1.2'}
+
+Purchasable types (ALLOWED_TYPES, all XTR/Stars):
+  hide_age           1000 — hide age 30 days (hide_age + hide_age_expiry)
+  invisible          3000 — invisible 30 days (grid_visible=false +
+                            invisible_expiry)
+  edit_profile       1000 — edit pass 30 days (edit_profile_pass +
+                            edit_profile_expiry)
+  change_filter      1000 — filter subscription 30 days (filter_sub_expiry,
+                            stacks)
+  change_preference  1000 — treated as edit_profile in the webhook
+  extra_row          1000 — extra row of nearby users
+  unlock_profile     1000 — unlock profile for editing
+  raffle_ticket       100 — raffle ticket
+  (only hide_age, invisible, edit_profile/change_preference and change_filter
+  have webhook entitlement logic; the rest create invoices but are not
+  auto-applied server-side)
+
+Payment flow: frontend POST /create-invoice -> openInvoice() -> Telegram ->
+POST /api/webhook (or /telegram-webhook) -> verify secret token -> record in
+transactions (idempotent) -> patch profile entitlement.
+
+================================================================================
+6. FRONTEND FEATURES (CURRENT, ALL OF THEM)
+================================================================================
+A. Auth & onboarding
+   - Telegram user auto-detection (id tg_<id>, name, username, photo);
+     local UUID fallback outside Telegram.
+   - Language auto-detected from Telegram language_code.
+   - Admin auto-detected from username (mileschan852 / hkmembersonly).
+   - Initial setup sheet: dob (required), height picker (100-300cm in 5cm
+     steps, shown as cm + ft/in), weight picker (35-160kg), gender/seeking
+     (locked/disabled in gaymode).
+   - 18+ lockout: is_underage set server-side from dob; underage users are
+     excluded from nearby results entirely and see an Access Denied screen.
+
+B. Grid & map discovery
+   - Grid of user cards sorted by distance (server-side Haversine, 50 km
+  radius), with clustering on the map (react-leaflet-cluster) and
+ free OpenStreetMap tiles (no API key required), recolored to a dark
+ theme client-side via a CSS filter (.dark-map-tiles in index.css).
+   - Map view shows only profiles with map_visible=true; your own pin is
+     always visible to you at your live GPS coords (greyed out only when
+     invisible, i.e. grid_visible=false — never by the map toggle).
+   - MAP footer toggle (green to red) INTENTIONALLY hides the pin from
+     others AND switches the view back to the grid; the pin staying hidden
+     when the map toggle is red is by design, not a bug.
+   - Geolocation capture: high-accuracy GPS (20s), then low-accuracy (15s),
+     then any cached fix, before showing "Location Access Required".
+     Default map centre is Hong Kong (22.3193, 114.1694).
+
+C. Profile cards
+   - Others: avatar, age (hidden if hide_age), zodiac emoji (computed from
+     dob), height, weight, distance + last-seen on one line, preference tags.
+   - Self: edit controls; hide_age toggle and where_pref (Host/Travel/
+     Anywhere) toggle save instantly. A "Reset Profile" button (blue) is shown:
+     for admin it opens the edit modal for FREE; for non-admin it triggers a
+     1000-Star edit_profile invoice, and editing unlocks after payment.
+   - Man-seeking-man profiles show the 5 colored preference tags (role,
+     safety, playstyle, how-many, where).
+   - Tag highlighting: on ANOTHER user's card, a tag lights up only if it
+     MATCHES the viewer's own preference filter (tagMatchesRole/Safety/
+     Playstyle/HowMany helpers; Versatile matches all roles except Side,
+     Off/"Doesn't matter"/Anywhere/null match everything). On the SELF card,
+     role/safety/how-many tags are always greyed; only the party (playstyle)
+     and where tags are lit. Party✓ shows an "I got stuff" bubble.
+   - Non-man or non-man-seeking profiles use non_man_mode instead of tags.
+
+D. Matching / filter engine
+   - Role: Top<->Bottom match, Versatile matches anyone except Side, Side
+     matches Side (VT/VB variants match Versatile+Top / Versatile+Bottom).
+   - Safety and playstyle must match; group-size accommodates 1on1 vs group
+     flexibility ("Doesn't matter" matches all).
+   - Matching profiles fully opaque; non-matching dimmed/grayscale.
+   - Filter menu (role/safety/playstyle/how-many, defaults derived from your
+     own prefs) is gated by filter_sub_expiry (paid subscription) or admin.
+
+E. Visibility controls
+   - GRID footer button + status light: green = visible on grid, red =
+     hidden (grid_visible=false, own card dims). Toggling refreshes data.
+   - MAP footer button + status light: green = sharing location on map,
+     red = hidden from map (map_visible). Toggling switches view.
+   - WALLET footer button: TON Connect UI wallet connection (blue when
+     connected). Only the official Telegram Wallet is offered.
+
+F. Communication
+   - Send Message button opens t.me/<username> (or t.me/user?id=<id> link)
+     via the Telegram WebApp SDK; only shown if the target passes your filter.
+   - CHAT footer button opens the community chat, per entry:
+     botA (gaymode) -> https://t.me/hkmochat
+     botB (default) -> https://t.me/whosnearby
+
+G. Private notes
+   - Per-viewer notes on other profiles (100 chars), stored ONLY in
+     Telegram CloudStorage (bot-scoped, device-independent), key
+     whos_nearby_private_note_<viewer>_<target>, JSON {t,x} with 30-day TTL and
+     a localStorage cache. Not in Supabase. Gated by filter_sub_expiry.
+
+H. Refresh limiter
+   - Manual refresh button fetches latest records; 5-minute cooldown
+     stored in localStorage, no visible countdown.
+
+I. Admin
+   - Admin UI unlocked client-side by username (mileschan852 / hkmembersonly).
+   - Force Reset button on other users' profiles -> POST /api/reset-profile,
+     which is authorized server-side by verified initData (decoded Telegram id
+     must equal ADMIN_ID 1231127407). This same reset also clears the target's
+     is_underage flag, so underage profiles are handled one at a time here.
+   - Free filter menu and free profile editing.
+
+J. Games & Apps side rail
+   - Star button opens a menu with external referral links (Busta gift bot,
+     TonFlip, Photify) opened via openTelegramLink/openLink.
+
+K. MintPage / MapPage (DEAD CODE)
+   - src/pages/MintPage.tsx (TON NFT mint, bonding-curve pricing) and
+     src/pages/MapPage.tsx exist but are never imported. Not part of the live
+     app. Safe to delete on any cleanup.
+
+L. Misc
+   - Dark theme (#121212); App.tsx uses inline styles (MintPage uses
+     styled-components but is dead code).
+
+================================================================================
+6b. INTERNATIONALISATION (i18n) — t() HELPER
+================================================================================
+   - languages: en, zh-CN, zh-TW, ja, ko, ru (auto-detected from Telegram
+     language_code; zh falls back to zh-TW for tw/hk/hant).
+   - All user-visible strings go through t('<key>') from the translations
+     object in App.tsx. Audit rule: every literal used in t('...') must exist
+     in ALL languages, and no UI string may be hardcoded in JSX.
+   - Intentionally NOT translated: proper nouns/brand names (Host, Travel,
+     Safe, Raw, Party, Top, Bottom etc. keep English labels with a local gloss),
+     numbers, and tile attribution.
+
+================================================================================
+7. BUILD / RUN / DEPLOY
+================================================================================
+  npm install
+  npm run dev      # Vite dev server
+  npm run build    # tsc -b && vite build (output in dist/)
+  npm run lint     # oxlint
+  npm run preview  # vite preview
+
+  Stack: React 19, TypeScript, Vite 8, Leaflet/react-leaflet, @supabase/supabase-js,
+  @tonconnect/ui-react.
+
+  Frontend deploy: GitHub Pages via GitHub Actions (.github/workflows/deploy.yml;
+  build-time env vars from Actions secrets); vercel.json exists as an alternate
+  target (Vite framework, SPA rewrite).
+  Worker deploy: wrangler deploy (name whosnearby-bot); secrets via
+  wrangler secret put (TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, SUPABASE_URL,
+  SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY).
+
+GOTCHAS FOR THE NEXT PERSON
+  - profiles has RLS; since migration 004 anon is read-only. The 18+ guarantee
+    comes from the trigger, not from permissions. Do not remove the trigger.
+  - flying_messages and raffle_state are not covered by any migration file.
+  - The Worker prefers SUPABASE_SERVICE_ROLE_KEY for writes (falls back to anon,
+    which hardened RLS blocks) — set the service key or writes will fail.
+  - start_param ('gaymode') / ?mode=gay is client-side only; anyone can open the
+    default entry and pick any gender.
+  - Two admin mechanisms: frontend uses username; the worker reset endpoints use
+    caller_id === 1231127407 in the request body. Both are client-supplied.
+  - /api/invoice ignores any client-sent price — edit ALLOWED_TYPES in worker.js
+    to change pricing, never the frontend.
+  - i18n: every user-visible string goes through t(); add new keys to ALL 6
+    languages (en, zh-CN, zh-TW, ja, ko, ru) or it renders the raw key.
+  - initData is HMAC-verified by the worker on /api/auth and /api/profile;
+    forged initData is rejected (401/403). This needs TELEGRAM_BOT_TOKEN set.
+  - monolithic-source.txt is regenerated from the live source files; trust the
+    source files if they ever drift.
+
+================================================================================
+8. @HKMODate_bot ENTRY (botA) — CURRENT DEPLOYED STATE
+================================================================================
+  - Second bot: @HKMODate_bot (men-only entry, botA key), RENAMED from the old
+    @HKMO_D_Bot. The main bot @WhosNearbyBot remains botB (default entry).
+  - CHAT footer button target is PER-ENTRY (not always hkmochat):
+    botA (gaymode) -> https://t.me/hkmochat
+    botB (default) -> https://t.me/whosnearby
+  - ?mode=gay URL query param is a FALLBACK that activates gaymode/botA when
+    Telegram start_param is unavailable (e.g. direct browser testing).
+    Checked in getActiveBotKey() AND in the isHkModEntry determination.
+  - Deployed state: frontend on GitHub Pages, Worker at
+    whosnearbybot.mileschan852.workers.dev; setWebhook is called with a
+    secret_token matching TELEGRAM_WEBHOOK_SECRET.
+  - Both bots share one Supabase DB and one Worker; botA traffic is
+    distinguished only client-side (start_param/mode=gay -> botA, gender lock).
+
+================================================================================
+9. SECURITY POSTURE
+================================================================================
+Hardened (done):
+  - initData HMAC verification: /api/auth and /api/profile reject forged or
+    mismatched Telegram initData (401/403), so identities cannot be spoofed at
+    those endpoints.
+  - dob never leaves the API: /api/nearby strips dob and returns only a derived
+    age.
+  - RLS hardening (migration 004_rls_hardening): anon downgraded to read-only
+    on profiles; direct anon writes blocked.
+  - Webhook secret (migration 004_webhook_secret + worker): /api/webhook and
+    /telegram-webhook require a matching X-Telegram-Bot-Api-Secret-Token header
+    (constant-time compare, 403 otherwise); setWebhook uses secret_token.
+  - Replay-attack dedupe: transactions keyed by provider/telegram payment
+    charge ids (unique); duplicate/rejected inserts abort with HTTP 400.
+  - 18+ gate enforced server-side by the enforce_age trigger.
+  - Admin endpoints are initData-authenticated: /api/reset-profile requires the
+    decoded id to equal ADMIN_ID; /api/roles requires isAdminCaller (ADMIN_ID,
+    an always-admin username, or role=admin in app_roles). A client-supplied
+    caller_id is never trusted, and the owner role is immutable.
+Still weak (known, unfixed):
+  - The Worker still falls back to SUPABASE_ANON_KEY when
+    SUPABASE_SERVICE_ROLE_KEY is not set; without the service key, hardened RLS
+    blocks its writes — set the service key.
+  - Frontend admin/VIP gating (isAdmin/isVip/paidUnlocked) is client-side only
+    convenience; server authority always comes from the initData-verified
+    worker endpoints.
+  - start_param / mode=gay is client-side only: anyone opening the default
+    entry can pick any gender; no server-side gaymode enforcement.
+  - CORS allows all origins on the Worker.
+
+================================================================================
+10. ENV/SECRETS CHECKLIST FOR A REBUILD (names only)
+================================================================================
+GitHub Actions secrets (build-time, frontend):
+  VITE_SUPABASE_URL
+  VITE_SUPABASE_ANON_KEY
+  VITE_PAYMENT_WORKER_URL      — must be the CURRENT worker URL
+                                 (whosnearbybot.mileschan852.workers.dev)
+Worker secrets (wrangler secret put / Cloudflare dashboard):
+  TELEGRAM_BOT_TOKEN
+  TELEGRAM_WEBHOOK_SECRET      — same value as setWebhook secret_token
+  SUPABASE_URL
+  SUPABASE_ANON_KEY
+  SUPABASE_SERVICE_ROLE_KEY    — required for writes since migration 004
+Supabase: run migrations 001 -> 002 -> 003 -> 004_rls_hardening ->
+  004_webhook_secret, then hand-create public.flying_messages and
+  public.raffle_state (not covered by any migration).
+Telegram: setWebhook per bot with the matching secret_token.
+
+================================================================================
+11. OPEN ITEMS
+================================================================================
+  - Stale dead host: public/tonconnect-manifest.json AND src/main.tsx
+    (TONCONNECT_MANIFEST_URL) AND .env.example's VITE_PAYMENT_WORKER_URL all
+    still point at teleclaw-dispatch.silent-flower-a7c2.workers.dev/... — must
+    be repointed to the current worker/Pages URL before TON Connect works.
+  - flying_messages and raffle_state still lack migration files.
+  - src/pages/MapPage.tsx and src/pages/MintPage.tsx are dead code (never
+    imported) — delete on cleanup.
+  - Admin reset endpoints are not initData-authenticated (spoofable caller_id).
