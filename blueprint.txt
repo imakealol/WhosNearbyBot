@@ -293,8 +293,8 @@ A. Auth & onboarding
 
 B. Grid & map discovery
    - Grid of user cards sorted by distance (server-side Haversine, 50 km
-     radius), with clustering on the map (react-leaflet-cluster) and
-     CartoDB Dark Matter tiles.
+  radius), with clustering on the map (react-leaflet-cluster) and
+free OpenStreetMap tiles (no API key required).
    - Map view shows only profiles with map_visible=true; your own pin is
      always visible to you at your live GPS coords (greyed out only when
      invisible, i.e. grid_visible=false — never by the map toggle).

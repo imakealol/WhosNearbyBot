@@ -38,7 +38,7 @@ The chat menu button on @HKMODate_bot ("Open App") opens the Mini App; the app i
 ## Features
 
 - 📍 Grid of nearby Telegram users sorted by distance (server-side Haversine)
-- 🗺️ Map view with Leaflet (CartoDB Dark Matter tiles)
+- 🗺️ Map view with Leaflet (free OpenStreetMap tiles, no API key)
 - 👤 Profile cards with age, zodiac sign, height, weight, distance, last seen
 - 🔗 Click any user to open a DM via Telegram
 - ⚡ Preference tag matching (role, safety, playstyle, group size, location)

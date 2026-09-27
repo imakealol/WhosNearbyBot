@@ -82,7 +82,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     subscribedUntil: '已订阅至 {d}', expired: '已过期',
     privateNote: '私密备注', notePlaceholder: '私密备注 (最多100字)',
     forceReset: '强制重置', gamesApps: '游戏和应用',
-    selectedUser: '已选中用户: {n}', profileReset: '资料已重置。', resetFailed: '重置失败。',
+    selectedUser: '��选中用户: {n}', profileReset: '资料已重置。', resetFailed: '重置失败。',
     forceResetConfirm: '强制重置 {n} 的资料？'
   },
   'zh-TW': {
@@ -325,28 +325,6 @@ function MapController({ center }: { center: [number, number] }) {
       map.setView(center, 15, { animate: true });
     }
   }, [center, map]);
-  return null;
-}
-
-// Fallback tile source: if the CartoDB dark tiles fail (e.g. rate-limited with
-// an "API key required" error tile), swap to the free OSM standard tiles.
-const FALLBACK_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-let tileFallbackUsed = false;
-function TileFallbackController() {
-  const map = useMap();
-  useEffect(() => {
-    if (!map) return;
-    const onTileError = () => {
-      if (tileFallbackUsed) return;
-      tileFallbackUsed = true;
-      map.eachLayer((layer: any) => {
-        if (layer instanceof L.TileLayer) { map.removeLayer(layer); }
-      });
-      L.tileLayer(FALLBACK_TILE_URL, { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-    };
-    map.on('tileerror', onTileError);
-    return () => { map.off('tileerror', onTileError); };
-  }, [map]);
   return null;
 }
 
@@ -1220,8 +1198,7 @@ export default function App() {
         <div style={{ display: view === 'map' ? 'block' : 'none', height: '100%', width: '100%', position: 'relative', flex: 1, zIndex: 1 }}>
           <MapContainer center={[location.lat, location.lng]} zoom={15} style={{ height: '100%', width: '100%', position: 'absolute', top: 0, left: 0, zIndex: 1 }} zoomControl={false}>
             <MapController center={[location.lat, location.lng]} />
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
-            <TileFallbackController />
+<TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' maxZoom={19} />
             <MarkerClusterGroup chunkedLoading>
               {/* Your own pin: ALWAYS visible to you only, at your live GPS coords, greyed out unless green. */}
               {currentUser && typeof location.lat === 'number' && typeof location.lng === 'number' && (
