@@ -74,7 +74,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     'Safe': 'Safe (戴套)', 'Raw': 'Raw (无套)',
     'Clean': 'Clean (无药)', 'Party': 'Party (嗨药)', 'Party✓': 'Party✓',
     '1on1_setup': '单对单 (仅限1on1)', 'group_setup': '群组 (仅限群组)', 'DoesntMatter_setup': '无所谓',
-    '1on1': '单对单', 'group': '群组', 'DoesntMatter': '无所谓',
+    '1on1': '单���单', 'group': '群组', 'DoesntMatter': '无所谓',
     'Host': '提供场地 (Host)', 'Travel': '上门 (Travel)', 'Off': '关闭', 'Anywhere': '任意', 'Role': '角色', 'Safety': '安全', 'Playstyle': '风格', 'How Many': '人数', 'Where': '地点',
     you: '你', away: '远', online: '在线', offline: '离线',
     mAgo: '{n}分钟前', hAgo: '{n}小时前', dAgo: '{n}天前',
@@ -1198,7 +1198,7 @@ export default function App() {
         <div style={{ display: view === 'map' ? 'block' : 'none', height: '100%', width: '100%', position: 'relative', flex: 1, zIndex: 1 }}>
           <MapContainer center={[location.lat, location.lng]} zoom={15} style={{ height: '100%', width: '100%', position: 'absolute', top: 0, left: 0, zIndex: 1 }} zoomControl={false}>
             <MapController center={[location.lat, location.lng]} />
-<TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' maxZoom={19} />
+<TileLayer className="dark-map-tiles" url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' maxZoom={19} />
             <MarkerClusterGroup chunkedLoading>
               {/* Your own pin: ALWAYS visible to you only, at your live GPS coords, greyed out unless green. */}
               {currentUser && typeof location.lat === 'number' && typeof location.lng === 'number' && (
