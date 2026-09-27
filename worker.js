@@ -21,6 +21,21 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+// Telegram id of the sole admin allowed to force-reset any profile.
+const ADMIN_ID = 1231127407;
+
+// Age from full month/day math so a 17-year-old never rounds up to 18.
+function computeAge(dob) {
+  if (!dob) return null;
+  const b = new Date(dob);
+  if (isNaN(b.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+  return age;
+}
+
 function sbHeaders(env, write = false) {
   const key = write && env.SUPABASE_SERVICE_ROLE_KEY ? env.SUPABASE_SERVICE_ROLE_KEY : env.SUPABASE_ANON_KEY;
   return {
@@ -72,6 +87,9 @@ async function verifyInitData(env, initData) {
   const params = new URLSearchParams(initData);
   const hash = params.get("hash");
   if (!hash) return false;
+  // Reject stale/replayed initData: Telegram recommends a max age (24h here).
+  const authDate = parseInt(params.get("auth_date") || "0", 10);
+  if (!authDate || Date.now() / 1000 - authDate > 86400) return false;
   params.delete("hash");
   params.delete("signature");
   const dataCheckString = [...params.entries()]
@@ -102,6 +120,39 @@ const ALLOWED_TYPES = {
   raffle_ticket:     { title: 'Raffle Ticket',             description: 'Buy a raffle ticket.',                               amount: 100 },
 };
 
+// Shared Telegram payment handling for both webhook routes. Callers MUST
+// verify the secret-token header before invoking this.
+async function handlePaymentUpdate(env, update) {
+  if (update.pre_checkout_query) {
+    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery`, {
+      method: "POST", body: JSON.stringify({ pre_checkout_query_id: update.pre_checkout_query.id, ok: true }),
+      headers: { "Content-Type": "application/json" },
+    });
+    return new Response("OK");
+  }
+  if (update.message?.successful_payment) {
+    const payload = JSON.parse(update.message.successful_payment.invoice_payload);
+    const expiry = new Date(Date.now() + 30 * 86400000).toISOString();
+    const txResult = await sbPost(env, "rest/v1/transactions", {
+      user_id: payload.tg_id, type: payload.type, amount: payload.finalAmount, currency: "XTR",
+      provider_payment_charge_id: update.message.successful_payment.provider_payment_charge_id || null,
+      telegram_payment_charge_id: update.message.successful_payment.telegram_payment_charge_id || null,
+    });
+    if (!txResult) return new Response("Duplicate or invalid transaction", { status: 400 });
+    const profileId = `tg_${payload.tg_id}`;
+    if (payload.type === "hide_age") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { hide_age: true, hide_age_expiry: expiry });
+    else if (payload.type === "invisible") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { grid_visible: false, invisible_expiry: expiry });
+    else if (payload.type === "change_preference" || payload.type === "edit_profile") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { edit_profile_pass: true, edit_profile_expiry: expiry });
+    else if (payload.type === "change_filter") {
+      const existing = await sbGet(env, `rest/v1/profiles?select=filter_sub_expiry&id=eq.${encodeURIComponent(profileId)}`);
+      const prev = (Array.isArray(existing) ? existing[0] : existing)?.filter_sub_expiry;
+      const base = prev && new Date(prev).getTime() > Date.now() ? new Date(prev).getTime() : Date.now();
+      await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { filter_sub_expiry: new Date(base + 30 * 86400000).toISOString() });
+    }
+  }
+  return new Response("OK");
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -130,7 +181,7 @@ export default {
         if (!created) await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(tgId)}`, profileData);
         const user = await sbGet(env, `rest/v1/profiles?id=eq.${encodeURIComponent(tgId)}`);
         return json(Array.isArray(user) ? user[0] : user);
-      } catch (e) { return json({ error: e.message }, 500); }
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
     }
 
     // GET /api/nearby
@@ -140,17 +191,21 @@ export default {
         const lat = parseFloat(url.searchParams.get("lat") || "0");
         const lng = parseFloat(url.searchParams.get("lng") || "0");
         const profileId = `tg_${tgId}`;
-        const radius = parseInt(url.searchParams.get("radius") || "50000");
-        const users = await sbGet(env, `rest/v1/profiles?select=*&id=neq.${encodeURIComponent(profileId)}&lat=not.is.null&lng=not.is.null&is_underage=is.false&order=last_seen.desc`);
+        // Clamp radius (max 100km) so a caller can't request the whole dataset.
+        const radius = Math.min(Math.max(parseInt(url.searchParams.get("radius") || "50000", 10) || 50000, 0), 100000);
+        // Only return rows the caller is entitled to see: visible on the grid
+        // OR opted into the map. Enforces paid Invisible Mode server-side so a
+        // direct API call can't leak a hidden user's location.
+        const users = await sbGet(env, `rest/v1/profiles?select=*&id=neq.${encodeURIComponent(profileId)}&lat=not.is.null&lng=not.is.null&is_underage=is.false&or=(grid_visible.is.true,map_visible.is.true)&order=last_seen.desc`);
         if (!users) return json([]);
         const result = (Array.isArray(users) ? users : [])
-          .map(u => { const dist = haversineKm(lat, lng, u.lat, u.lng); let age = null; if (u.dob) { const b = new Date(u.dob); age = new Date().getFullYear() - b.getFullYear(); } return { ...u, distance_km: Math.round(dist * 10) / 10, age }; })
+          .map(u => { const dist = haversineKm(lat, lng, u.lat, u.lng); return { ...u, distance_km: Math.round(dist * 10) / 10, age: computeAge(u.dob) }; })
           .filter(u => u.distance_km <= radius / 1000)
           .sort((a, b) => a.distance_km - b.distance_km)
           // Never leak raw date of birth; only the derived age leaves the API.
           .map(u => { const { dob, ...safe } = u; return { ...safe, dob: undefined }; });
         return json(result);
-      } catch (e) { return json({ error: e.message }, 500); }
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
     }
 
     // GET /api/profile
@@ -161,7 +216,7 @@ export default {
         const u = Array.isArray(user) ? user[0] : user;
         if (!u) return json({ error: "Not found" }, 404);
         return json(u);
-      } catch (e) { return json({ error: e.message }, 500); }
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
     }
 
     // POST /api/profile
@@ -198,7 +253,7 @@ export default {
         if (map_visible !== undefined) updates.map_visible = map_visible;
         await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, updates);
         return json({ updated: true });
-      } catch (e) { return json({ error: e.message }, 500); }
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
     }
 
     // POST /api/invoice  (alias: /create-invoice)
@@ -219,7 +274,7 @@ export default {
         const data = await res.json();
         if (!data.ok) return json({ error: data.description || "Telegram error" }, 500);
         return json({ invoiceLink: data.result });
-      } catch (e) { return json({ error: e.message }, 500); }
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
     }
 
     // POST /api/webhook — verify Telegram's secret-token header first so
@@ -232,74 +287,20 @@ export default {
         return new Response("Forbidden", { status: 403 });
       }
       try {
-        const update = await request.json();
-        if (update.pre_checkout_query) {
-          await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery`, {
-            method: "POST", body: JSON.stringify({ pre_checkout_query_id: update.pre_checkout_query.id, ok: true }),
-            headers: { "Content-Type": "application/json" },
-          });
-          return new Response("OK");
-        }
-        if (update.message?.successful_payment) {
-          const payload = JSON.parse(update.message.successful_payment.invoice_payload);
-          const expiry = new Date(Date.now() + 30 * 86400000).toISOString();
-          const txResult = await sbPost(env, "rest/v1/transactions", {
-            user_id: payload.tg_id, type: payload.type, amount: payload.finalAmount, currency: "XTR",
-            provider_payment_charge_id: update.message.successful_payment.provider_payment_charge_id || null,
-            telegram_payment_charge_id: update.message.successful_payment.telegram_payment_charge_id || null,
-          });
-          if (!txResult) return new Response("Duplicate or invalid transaction", { status: 400 });
-          const profileId = `tg_${payload.tg_id}`;
-          if (payload.type === "hide_age") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { hide_age: true, hide_age_expiry: expiry });
-          else if (payload.type === "invisible") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { grid_visible: false, invisible_expiry: expiry });
-          else if (payload.type === "change_preference" || payload.type === "edit_profile") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { edit_profile_pass: true, edit_profile_expiry: expiry });
-          else if (payload.type === "change_filter") {
-            const existing = await sbGet(env, `rest/v1/profiles?select=filter_sub_expiry&id=eq.${encodeURIComponent(profileId)}`);
-            const prev = (Array.isArray(existing) ? existing[0] : existing)?.filter_sub_expiry;
-            const base = prev && new Date(prev).getTime() > Date.now() ? new Date(prev).getTime() : Date.now();
-            await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { filter_sub_expiry: new Date(base + 30 * 86400000).toISOString() });
-          }
-        }
-        return new Response("OK");
+        return await handlePaymentUpdate(env, await request.json());
       } catch { return new Response("OK"); }
     }
 
-    // POST /telegram-webhook — bot updates, secret-token protected
+    // POST /telegram-webhook — bot updates, secret-token protected. Fails
+    // closed: without TELEGRAM_WEBHOOK_SECRET no update is accepted, so a
+    // forged successful_payment can never grant a paid entitlement for free.
     if (path === "/telegram-webhook" && request.method === "POST") {
-      if (env.TELEGRAM_WEBHOOK_SECRET) {
-        const got = request.headers.get("x-telegram-bot-api-secret-token");
-        if (got !== env.TELEGRAM_WEBHOOK_SECRET) return new Response("Forbidden", { status: 403 });
+      const secretHeader = request.headers.get("x-telegram-bot-api-secret-token") || "";
+      if (!env.TELEGRAM_WEBHOOK_SECRET || !timingSafeEqual(secretHeader, env.TELEGRAM_WEBHOOK_SECRET)) {
+        return new Response("Forbidden", { status: 403 });
       }
       try {
-        const update = await request.json();
-        if (update.pre_checkout_query) {
-          await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery`, {
-            method: "POST", body: JSON.stringify({ pre_checkout_query_id: update.pre_checkout_query.id, ok: true }),
-            headers: { "Content-Type": "application/json" },
-          });
-          return new Response("OK");
-        }
-        if (update.message?.successful_payment) {
-          const payload = JSON.parse(update.message.successful_payment.invoice_payload);
-          const expiry = new Date(Date.now() + 30 * 86400000).toISOString();
-          const txResult = await sbPost(env, "rest/v1/transactions", {
-            user_id: payload.tg_id, type: payload.type, amount: payload.finalAmount, currency: "XTR",
-            provider_payment_charge_id: update.message.successful_payment.provider_payment_charge_id || null,
-            telegram_payment_charge_id: update.message.successful_payment.telegram_payment_charge_id || null,
-          });
-          if (!txResult) return new Response("Duplicate or invalid transaction", { status: 400 });
-          const profileId = `tg_${payload.tg_id}`;
-          if (payload.type === "hide_age") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { hide_age: true, hide_age_expiry: expiry });
-          else if (payload.type === "invisible") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { grid_visible: false, invisible_expiry: expiry });
-          else if (payload.type === "change_preference" || payload.type === "edit_profile") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { edit_profile_pass: true, edit_profile_expiry: expiry });
-          else if (payload.type === "change_filter") {
-            const existing = await sbGet(env, `rest/v1/profiles?select=filter_sub_expiry&id=eq.${encodeURIComponent(profileId)}`);
-            const prev = (Array.isArray(existing) ? existing[0] : existing)?.filter_sub_expiry;
-            const base = prev && new Date(prev).getTime() > Date.now() ? new Date(prev).getTime() : Date.now();
-            await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { filter_sub_expiry: new Date(base + 30 * 86400000).toISOString() });
-          }
-        }
-        return new Response("OK");
+        return await handlePaymentUpdate(env, await request.json());
       } catch { return new Response("OK"); }
     }
 
@@ -308,15 +309,19 @@ export default {
       try {
         const limit = parseInt(url.searchParams.get("limit") || "10");
         return json(await sbGet(env, `rest/v1/flying_messages?order=created_at.desc&limit=${limit}`) || []);
-      } catch (e) { return json({ error: e.message }, 500); }
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
     }
     if (path === "/api/messages" && request.method === "POST") {
       try {
-        const { tg_id, text, from_name } = await request.json();
+        const { text, initData } = await request.json();
+        // Authenticate: the sender identity comes from verified initData, not
+        // client-supplied fields, so no one can post as another name/id.
+        if (!(await verifyInitData(env, initData || ""))) return json({ error: "Unauthorized" }, 401);
         if (!text || !text.trim()) return json({ error: "Missing text" }, 400);
-        await sbPost(env, "rest/v1/flying_messages", { id: crypto.randomUUID(), tg_id: tg_id || 0, text: text.trim().slice(0, 200), from_name: from_name || "Anonymous" });
+        const authUser = JSON.parse(new URLSearchParams(initData).get("user") || "{}");
+        await sbPost(env, "rest/v1/flying_messages", { id: crypto.randomUUID(), tg_id: authUser.id || 0, text: text.trim().slice(0, 200), from_name: (authUser.first_name || "Anonymous").slice(0, 60) });
         return json({ ok: true });
-      } catch (e) { return json({ error: e.message }, 500); }
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
     }
 
     // GET /api/raffle
@@ -325,31 +330,25 @@ export default {
       return json(Array.isArray(state) ? state[0] : state || { prize_name: "Ultimate Bundle", tickets_sold: 0 });
     }
 
-    // POST /api/reset-profile
+    // POST /api/reset-profile — admin-only force reset of a single profile.
+    // Authorization comes from verified initData (HMAC + freshness), and the
+    // decoded Telegram id must equal ADMIN_ID. A client-supplied caller_id is
+    // never trusted. Also clears the target's underage flag.
     if (path === "/api/reset-profile" && request.method === "POST") {
-      const { caller_id, target_id } = await request.json();
-      if (!caller_id || !target_id) return json({ error: "Missing params" }, 400);
-      if (caller_id !== 1231127407) return json({ error: "Forbidden" }, 403);
-      await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(`tg_${target_id}`)}`, {
-        name: null, username: null, avatar: null, dob: null, height: null, weight: null,
-        gender: "Male", seeking: "Male", role_pref: null, safety_pref: null, playstyle_pref: null,
-        where_pref: null, how_many_pref: null, hide_age: false, grid_visible: true, map_visible: false,
-        is_underage: false, hide_age_expiry: null, invisible_expiry: null,
-      });
-      return json({ reset: true });
-    }
-
-    // POST /api/reset-all-underage (admin only)
-    if (path === "/api/reset-all-underage" && request.method === "POST") {
-      const { caller_id } = await request.json();
-      if (caller_id !== 1231127407) return json({ error: "Forbidden" }, 403);
-      await sbPatch(env, "rest/v1/profiles?is_underage=eq.true", {
-        name: null, username: null, avatar: null, dob: null, height: null, weight: null,
-        gender: "Male", seeking: "Male", role_pref: null, safety_pref: null, playstyle_pref: null,
-        where_pref: null, how_many_pref: null, hide_age: false, grid_visible: true, map_visible: false,
-        is_underage: false, hide_age_expiry: null, invisible_expiry: null,
-      });
-      return json({ reset: true });
+      try {
+        const { target_id, initData } = await request.json();
+        if (!target_id) return json({ error: "Missing params" }, 400);
+        if (!(await verifyInitData(env, initData || ""))) return json({ error: "Unauthorized" }, 401);
+        const authUser = JSON.parse(new URLSearchParams(initData).get("user") || "{}");
+        if (Number(authUser.id) !== ADMIN_ID) return json({ error: "Forbidden" }, 403);
+        await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(`tg_${target_id}`)}`, {
+          name: null, username: null, avatar: null, dob: null, height: null, weight: null,
+          gender: "Male", seeking: "Male", role_pref: null, safety_pref: null, playstyle_pref: null,
+          where_pref: null, how_many_pref: null, hide_age: false, grid_visible: true, map_visible: false,
+          is_underage: false, hide_age_expiry: null, invisible_expiry: null,
+        });
+        return json({ reset: true });
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
     }
 
     // GET /api/health

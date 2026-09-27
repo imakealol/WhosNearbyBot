@@ -1,14 +1,97 @@
+# WhosNearbyBot — Monolithic Source Dump
+# Generated: 2026-09-27T09:10:42Z
+# This is a concatenation of all source files for handoff/review.
+
 ================================================================================
-WhosNearbyBot / Who's Nearby — MONOLITHIC SOURCE DUMP
-Generated: 2026-09-27T08:57:54Z  (all source in one file)
-See blueprint.txt for the architecture/handoff spec.
+FILE: .oxlintrc.json
 ================================================================================
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  }
+}
 
 
-################################################################################
-# FILE: index.html
-################################################################################
+================================================================================
+FILE: README.md
+================================================================================
+# WhosNearbyBot
 
+A Telegram Mini App for finding nearby Telegram users — React + TypeScript SPA with a Cloudflare Worker backend and Supabase (PostgreSQL).
+
+## Architecture
+
+### Frontend (React SPA)
+- **Stack:** React 19, TypeScript, Vite, Leaflet/react-leaflet
+- **Deployed to:** GitHub Pages (via CI)
+- **Config:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_PAYMENT_WORKER_URL` set at build time (GitHub Actions secrets). See `.env.example`.
+
+### Backend (Cloudflare Worker)
+- **URL:** `https://teleclaw-dispatch.silent-flower-a7c2.workers.dev/287f310dcfbf`
+- **Payment Worker:** `worker.js` — Telegram Stars invoice creation (`POST /create-invoice`), verified payment webhook (`POST /telegram-webhook`), `GET /health`.
+- **Secrets (set via `wrangler secret` / hosting env — never commit):**
+  - `TELEGRAM_BOT_TOKEN` — bot token for @WhosNearbyBot
+  - `SUPABASE_URL` — Supabase project URL
+  - `SUPABASE_ANON_KEY` — Supabase anon key
+
+### Database (Supabase PostgreSQL)
+- Migrations live in `supabase/migrations/` (run them in order in the Supabase SQL Editor):
+  - `001_initial_schema.sql` — `profiles` (with subscription expiry columns), `transactions` (idempotency), `purchases`, RLS policies
+  - `002_age_enforcement_and_nearby.sql` — `compute_age()` + trigger that recomputes `is_underage` from `dob` on every write (server-side 18+ gate), and `get_nearby_users()` Haversine search with server-side age filtering
+
+## Men-Only Entry (gaymode)
+
+The app supports a `startapp=gaymode` parameter that locks the user's gender to "man" and seeking to "men". This is used by @HKMODate_bot as a dedicated men-only entry point: `https://t.me/HKMODate_bot/app?startapp=gaymode`.
+
+### Two Entry Points
+
+| Entry | Bot | Link | Behavior |
+|-------|-----|------|----------|
+| Default (botB) | @WhosNearbyBot | standard web app link | gender/seeking freely selectable |
+| Gay mode (botA) | @HKMODate_bot | `https://t.me/HKMODate_bot/app?startapp=gaymode` | gender locked to "man", seeking locked to "men" (selectors disabled) |
+
+The chat menu button on @HKMODate_bot ("Open App") opens the Mini App; the app itself detects the entry via `start_param` (`gaymode` → botA, otherwise botB). The chat button label links to @HKMOChat in gaymode and @WhosNearby in default mode.
+
+## Features
+
+- 📍 Grid of nearby Telegram users sorted by distance (server-side Haversine)
+- 🗺️ Map view with Leaflet (CartoDB Dark Matter tiles)
+- 👤 Profile cards with age, zodiac sign, height, weight, distance, last seen
+- 🔗 Click any user to open a DM via Telegram
+- ⚡ Preference tag matching (role, safety, playstyle, group size, location)
+- 🎛️ Filter menu (preference tags) — subscription-gated via Telegram Stars
+- 🔒 Server-side age verification (18+), hide age toggle, invisible mode — via Stars payments
+- 🌙 Dark theme
+
+## Telegram Stars Payments
+
+| Feature | Price | Type |
+|---------|-------|------|
+| Hide Age (30 days) | 1000 XTR | `hide_age` |
+| Invisible Mode (30 days) | 3000 XTR | `invisible` |
+| Edit Profile Pass | 1000 XTR | `edit_profile` |
+| Filter Subscription (30 days) | 1000 XTR | `change_filter` |
+| Change Profile & Preferences | 1000 XTR | `change_preference` |
+
+**Payment flow:** Frontend calls `POST /create-invoice` → gets invoice link → opens via `Telegram.WebApp.openInvoice()` → Telegram sends webhook to `POST /telegram-webhook` → webhook verifies the charge via `getUpdates`, records it in `transactions` (idempotent), and updates the profile in Supabase.
+
+## Development
+
+```bash
+npm install
+npm run dev      # Vite dev server
+npm run build    # Build for production
+```
+
+Copy `.env.example` to `.env` and fill in the values before building.
+
+
+================================================================================
+FILE: index.html
+================================================================================
 <!doctype html>
 <html lang="en">
   <head>
@@ -26,98 +109,9 @@ See blueprint.txt for the architecture/handoff spec.
 </html>
 
 
-################################################################################
-# FILE: vite.config.ts
-################################################################################
-
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// I am forcing relative paths here so GitHub Pages can actually find your files.
-export default defineConfig({
-  plugins: [react()],
-  base: './', 
-})
-
-
-################################################################################
-# FILE: tsconfig.json
-################################################################################
-
-{
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
-}
-
-
-################################################################################
-# FILE: tsconfig.app.json
-################################################################################
-
-{
-  "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "target": "es2023",
-    "lib": ["ES2023", "DOM"],
-    "module": "esnext",
-    "types": ["vite/client"],
-    "allowArbitraryExtensions": true,
-    "skipLibCheck": true,
-
-    /* Bundler mode */
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
-    "noEmit": true,
-    "jsx": "react-jsx",
-
-    /* Linting */
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
-  },
-  "include": ["src"]
-}
-
-
-################################################################################
-# FILE: tsconfig.node.json
-################################################################################
-
-{
-  "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-    "target": "es2023",
-    "lib": ["ES2023"],
-    "types": ["node"],
-    "skipLibCheck": true,
-
-    /* Bundler mode */
-    "module": "nodenext",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
-    "noEmit": true,
-
-    /* Linting */
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
-  },
-  "include": ["vite.config.ts"]
-}
-
-
-################################################################################
-# FILE: package.json
-################################################################################
-
+================================================================================
+FILE: package.json
+================================================================================
 {
   "name": "whos-nearby",
   "private": true,
@@ -153,185 +147,21 @@ export default defineConfig({
 }
 
 
-################################################################################
-# FILE: wrangler.toml
-################################################################################
-
-name = "whosnearby-bot"
-main = "worker.js"
-compatibility_date = "2026-08-04"
-compatibility_flags = ["nodejs_compat"]
-
-# All secrets are injected at deploy time (wrangler secret put / hosting env vars).
-# NEVER commit real values here. See .env.example for the variable names.
-
-
-################################################################################
-# FILE: vercel.json
-################################################################################
-
+================================================================================
+FILE: public/tonconnect-manifest.json
+================================================================================
 {
-  "framework": "vite",
-  "buildCommand": "tsc -b && vite build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
-
-################################################################################
-# FILE: .env.example
-################################################################################
-
-# Who's Nearby — environment variables (copy to .env and fill in)
-
-# Frontend (Vite) — set at build time (GitHub Actions secrets or .env)
-VITE_SUPABASE_URL=https://uslxmetypzqnuutbgbkl.supabase.co
-VITE_SUPABASE_ANON_KEY=your_anon_key_here
-VITE_PAYMENT_WORKER_URL=https://teleclaw-dispatch.silent-flower-a7c2.workers.dev/287f310dcfbf
-
-# Worker (Cloudflare) — set as secrets, NEVER commit
-# TELEGRAM_BOT_TOKEN=123456:ABC...
-# SUPABASE_URL=https://uslxmetypzqnuutbgbkl.supabase.co
-# SUPABASE_ANON_KEY=your_key_here
-
-
-################################################################################
-# FILE: .oxlintrc.json
-################################################################################
-
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  "url": "https://teleclaw-dispatch.silent-flower-a7c2.workers.dev/f6710d69cb37",
+  "name": "Who's Nearby",
+  "iconUrl": "https://teleclaw-dispatch.silent-flower-a7c2.workers.dev/f6710d69cb37/favicon.png",
+  "termsOfUseUrl": "",
+  "privacyPolicyUrl": ""
 }
 
 
-################################################################################
-# FILE: .github/workflows/deploy.yml
-################################################################################
-
-name: Deploy to GitHub Pages
-
-on:
-  push:
-    branches: [main]
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_PAYMENT_WORKER_URL: ${{ secrets.VITE_PAYMENT_WORKER_URL }}
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-
-################################################################################
-# FILE: src/main.tsx
-################################################################################
-
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { TonConnectUIProvider } from '@tonconnect/ui-react';
-import App from './App.tsx';
-import 'leaflet/dist/leaflet.css';
-import './index.css'; // Assuming you have a basic reset here
-
-// Official Telegram Wallet is the ONLY wallet allowed to connect (per owner spec).
-// The single-wallet modal only offers the Telegram Wallet entry from the
-// canonical TON Connect registry — no other wallet can be picked.
-const TONCONNECT_MANIFEST_URL = 'https://teleclaw-dispatch.silent-flower-a7c2.workers.dev/f6710d69cb37/tonconnect-manifest.json';
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <TonConnectUIProvider
-      manifestUrl={TONCONNECT_MANIFEST_URL}
-      walletsListConfiguration={{
-        includeWallets: [
-          {
-            appName: 'telegram-wallet',
-            name: 'Wallet',
-            imageUrl: 'https://config.ton.org/assets/telegram_wallet.png',
-            aboutUrl: 'https://wallet.tg/',
-            universalLink: 'https://t.me/wallet?attach=wallet',
-            bridgeUrl: 'https://walletbot.me/tonconnect-bridge/bridge',
-            platforms: ['ios', 'android', 'macos', 'windows', 'linux'],
-          },
-        ],
-      }}
-    >
-      <App />
-    </TonConnectUIProvider>
-  </React.StrictMode>,
-);
-
-
-################################################################################
-# FILE: src/index.css
-################################################################################
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html, body, #root {
-  width: 100%;
-  height: 100vh;
-  overflow: hidden;
-  background-color: #121212;
-  color: #ffffff;
-}
-
-
-################################################################################
-# FILE: src/App.tsx
-################################################################################
-
+================================================================================
+FILE: src/App.tsx
+================================================================================
 // App.tsx — Main React SPA component for Who's Nearby
 // Covers: initialization, profile setup, grid/map views, filters, payments,
 // profile card, games menu, footer navigation.
@@ -400,12 +230,11 @@ const translations: Record<LangKey, Record<string, string>> = {
     privateNote: 'Private note', notePlaceholder: 'Private note (100 chars max)',
     forceReset: 'Force reset', gamesApps: 'Games & Apps', resetProfile: 'Reset Profile',
     selectedUser: 'Selected user: {n}', profileReset: 'Profile reset.', resetFailed: 'Reset failed.',
-    forceResetConfirm: 'Force reset profile of {n}?',
-    resetAllUnderage: 'Reset all underage', resetAllUnderageConfirm: 'Reset ALL underage profiles?'
+    forceResetConfirm: 'Force reset profile of {n}?'
   },
   'zh-CN': {
     loading: '正在加载应用...', locationRequired: '需要位置权限', locationMessage: '使用"附近"功能必须获得位置权限。请在浏览器或 Telegram 设置中启用位置访问并重新启动应用。', accessDenied: '拒绝访问', underageMessage: '本应用仅限成年人使用。由于年龄限制，该账户已被锁定。', completeProfile: '完善您的个人资料', profileWarning: '警告：此信息将来无法更改。此处填写的内容会影响您可以看到和互动的用户。', dob: '出生日期：', imA: '我是', seeking: '寻找', man: '男性', woman: '女性', nonBinary: '非二元性别', men: '男性', women: '女性', everyone: '所有人', height: '身高：', selectHeight: '选择身高', weight: '体重：', selectWeight: '选择体重', tapToChange: '点击更改您的偏好：', mode: '模式：', browsingOnly: '仅浏览', onlineOnly: '仅在线', meetUp: '约会中', saveProfile: '保存资料并继续', whosNearby: '附近的人', filter: '筛选', refresh: '刷新', grid: '网格', chat: '聊天', map: '地图', wallet: '钱包', filterUsers: '筛选用户', ageRange: '年龄范围', preferenceMatcher: '偏好匹配器', rolePreference: '角色偏好', safetyPreference: '安全偏好', playstylePreference: '游戏风格偏好', groupSize: '群组人数', applyFilters: '应用筛选', ageHidden: '年龄已隐藏', ageShown: '年龄已显示', expires: '到期时间：', sendMessage: '发送消息', unlockPreference: '更改资料与偏好', iGotStuff: '我有货', unlockPreferencePrompt: '更改个人资料与偏好需要支付 1000 Telegram Stars。是否继续支付？', invisiblePrompt: '隐身需要订阅 30 天，费用为 3000 Telegram Stars。是否继续支付？', hideAgePrompt: '隐藏年龄需要订阅 30 天，费用为 1000 Telegram Stars。是否继续支付？', filterSubPrompt: '自定义此筛选条件需要订阅。是否继续支付？', paymentCancelled: '支付已取消或失败。', errorSaving: '保存资料出错：', fillAll: '请填写所有必填问题以继续。',
-    'Versatile': '0.5 (可攻可受)', 'Top': '1 (攻)', 'Bottom': '0 (受)', 'Side': 'Side (边缘)', 'VT': '可攻可受 / 攻', 'VB': '可攻可受 / 受',
+    'Versatile': '0.5 (��攻可受)', 'Top': '1 (攻)', 'Bottom': '0 (受)', 'Side': 'Side (边缘)', 'VT': '可攻可受 / 攻', 'VB': '可攻可受 / 受',
     'Safe': 'Safe (戴套)', 'Raw': 'Raw (无套)',
     'Clean': 'Clean (无药)', 'Party': 'Party (嗨药)', 'Party✓': 'Party✓',
     '1on1_setup': '单对单 (仅限1on1)', 'group_setup': '群组 (仅限群组)', 'DoesntMatter_setup': '无所谓',
@@ -451,7 +280,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     subscribedUntil: '購読期限: {d}', expired: '期限切れ',
     privateNote: 'プライベートメモ', notePlaceholder: 'プライベートメモ (最大100文字)',
     forceReset: '強制リセット', gamesApps: 'ゲーム&アプリ',
-    selectedUser: '選択したユーザー: {n}', profileReset: 'プロフィールをリセットしました。', resetFailed: 'リセットに失敗しました。',
+    selectedUser: '選択したユーザー: {n}', profileReset: 'プロフィールをリセットしました。', resetFailed: 'リセットに失敗しま��た。',
     forceResetConfirm: '{n} のプロフィールを強制リセットしますか？'
   },
   'ko': {
@@ -1383,19 +1212,7 @@ export default function App() {
     try {
       await fetch(`${PAYMENT_WORKER_URL}/api/reset-profile`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caller_id: currentUser?.id ? Number(String(currentUser.id).replace(/^tg_/, '')) : null, target_id: Number(String(selectedProfile.id).replace(/^tg_/, '')) }),
-      });
-      alert(t('profileReset'));
-    } catch (e) { console.error(e); alert(t('resetFailed')); }
-  };
-
-  const handleResetAllUnderage = async () => {
-    if (!isAdmin || !PAYMENT_WORKER_URL) return;
-    if (!window.confirm(t('resetAllUnderageConfirm'))) return;
-    try {
-      await fetch(`${PAYMENT_WORKER_URL}/api/reset-all-underage`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caller_id: currentUser?.id ? Number(String(currentUser.id).replace(/^tg_/, '')) : null }),
+        body: JSON.stringify({ target_id: Number(String(selectedProfile.id).replace(/^tg_/, '')), initData: window.Telegram?.WebApp?.initData || '' }),
       });
       alert(t('profileReset'));
     } catch (e) { console.error(e); alert(t('resetFailed')); }
@@ -1607,9 +1424,6 @@ export default function App() {
                 <button type="button" onClick={(e) => { e.stopPropagation(); handleResetProfile(); }} style={{ padding: '2px 8px', backgroundColor: '#1d4ed8', border: '1px solid #444', borderRadius: '6px', fontSize: '12px', color: '#fff', cursor: 'pointer' }} title={t('resetProfile')}>{t('resetProfile')}</button>
               </div>
             )}
-            {isViewingSelf && isAdmin && (
-              <button type="button" onClick={(e) => { e.stopPropagation(); handleResetAllUnderage(); }} style={{ position: 'absolute', top: '14px', left: '14px', zIndex: 5, padding: '2px 8px', backgroundColor: '#7f1d1d', border: '1px solid #444', borderRadius: '6px', fontSize: '12px', color: '#fff', cursor: 'pointer' }} title={t('resetAllUnderage')}>{t('resetAllUnderage')}</button>
-            )}
             <div style={{ width: '40px', height: '4px', backgroundColor: '#444', borderRadius: '2px', marginBottom: '16px' }} />
             <div style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ width: '90px', height: '90px', borderRadius: '50%', overflow: 'hidden', backgroundColor: '#222', border: '3px solid #007bff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px', filter: passesFilterForActive ? 'none' : 'grayscale(100%)' }}>
@@ -1693,10 +1507,66 @@ export default function App() {
 
 
 
-################################################################################
-# FILE: src/pages/MapPage.tsx
-################################################################################
+================================================================================
+FILE: src/index.css
+================================================================================
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
+html, body, #root {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #121212;
+  color: #ffffff;
+}
+
+
+================================================================================
+FILE: src/main.tsx
+================================================================================
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { TonConnectUIProvider } from '@tonconnect/ui-react';
+import App from './App.tsx';
+import 'leaflet/dist/leaflet.css';
+import './index.css'; // Assuming you have a basic reset here
+
+// Official Telegram Wallet is the ONLY wallet allowed to connect (per owner spec).
+// The single-wallet modal only offers the Telegram Wallet entry from the
+// canonical TON Connect registry — no other wallet can be picked.
+const TONCONNECT_MANIFEST_URL = 'https://teleclaw-dispatch.silent-flower-a7c2.workers.dev/f6710d69cb37/tonconnect-manifest.json';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <TonConnectUIProvider
+      manifestUrl={TONCONNECT_MANIFEST_URL}
+      walletsListConfiguration={{
+        includeWallets: [
+          {
+            appName: 'telegram-wallet',
+            name: 'Wallet',
+            imageUrl: 'https://config.ton.org/assets/telegram_wallet.png',
+            aboutUrl: 'https://wallet.tg/',
+            universalLink: 'https://t.me/wallet?attach=wallet',
+            bridgeUrl: 'https://walletbot.me/tonconnect-bridge/bridge',
+            platforms: ['ios', 'android', 'macos', 'windows', 'linux'],
+          },
+        ],
+      }}
+    >
+      <App />
+    </TonConnectUIProvider>
+  </React.StrictMode>,
+);
+
+
+================================================================================
+FILE: src/pages/MapPage.tsx
+================================================================================
 import React, { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -1749,10 +1619,9 @@ const MapPage: React.FC = () => {
 
 export default MapPage
 
-################################################################################
-# FILE: src/pages/MintPage.tsx
-################################################################################
-
+================================================================================
+FILE: src/pages/MintPage.tsx
+================================================================================
 import React, { useState } from 'react'
 import styled from 'styled-components'
 import { useTonConnectUI, useTonAddress } from '@tonconnect/ui-react'
@@ -1996,376 +1865,9 @@ const MintPage: React.FC = () => {
 
 export default MintPage
 
-################################################################################
-# FILE: worker.js
-################################################################################
-
-// WhosNearbyBot worker — API-only, RLS-hardened version.
-// Secrets (env): TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_ANON_KEY,
-//                SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_WEBHOOK_SECRET
-// TELEGRAM_WEBHOOK_SECRET set => /telegram-webhook requires the
-// X-Telegram-Bot-Api-Secret-Token header to match (setWebhook secret_token).
-// Writes go through the service-role key when bound (bypasses RLS);
-// anon key is read-only fallback. Migration 004 makes anon read-only.
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": "*" },
-  });
-}
-
-function haversineKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-function sbHeaders(env, write = false) {
-  const key = write && env.SUPABASE_SERVICE_ROLE_KEY ? env.SUPABASE_SERVICE_ROLE_KEY : env.SUPABASE_ANON_KEY;
-  return {
-    "Content-Type": "application/json",
-    "apikey": key,
-    "Authorization": `Bearer ${key}`,
-  };
-}
-
-async function sbGet(env, path) {
-  const res = await fetch(`${env.SUPABASE_URL}/${path}`, { headers: sbHeaders(env) });
-  if (!res.ok) return null;
-  return res.json();
-}
-
-async function sbPost(env, path, body) {
-  const res = await fetch(`${env.SUPABASE_URL}/${path}`, {
-    method: "POST",
-    headers: { ...sbHeaders(env, true), "Prefer": "return=representation" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) return null;
-  return res.json();
-}
-
-async function sbPatch(env, path, body) {
-  const res = await fetch(`${env.SUPABASE_URL}/${path}`, {
-    method: "PATCH",
-    headers: { ...sbHeaders(env, true), "Prefer": "return=minimal" },
-    body: JSON.stringify(body),
-  });
-  return res.ok;
-}
-
-// ---- Auth helpers -----------------------------------------------------------
-
-// Verify Telegram's X-Telegram-Bot-Api-Secret-Token webhook header (constant-time).
-function timingSafeEqual(a, b) {
-  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
-// Validate Telegram WebApp initData HMAC per
-// https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
-async function verifyInitData(env, initData) {
-  if (!env.TELEGRAM_BOT_TOKEN) return false; // cannot validate without the token
-  const params = new URLSearchParams(initData);
-  const hash = params.get("hash");
-  if (!hash) return false;
-  params.delete("hash");
-  params.delete("signature");
-  const dataCheckString = [...params.entries()]
-    .map(([k, v]) => `${k}=${v}`)
-    .sort()
-    .join("\n");
-  const enc = new TextEncoder();
-  const secretKey = await crypto.subtle.importKey(
-    "raw", enc.encode("WebAppData"), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
-  );
-  const secret = await crypto.subtle.sign("HMAC", secretKey, enc.encode(env.TELEGRAM_BOT_TOKEN));
-  const signKey = await crypto.subtle.importKey(
-    "raw", secret, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
-  );
-  const signature = await crypto.subtle.sign("HMAC", signKey, enc.encode(dataCheckString));
-  const hex = [...new Uint8Array(signature)].map(b => b.toString(16).padStart(2, "0")).join("");
-  return timingSafeEqual(hex, hash);
-}
-
-const ALLOWED_TYPES = {
-  hide_age:          { title: 'Hide Age (30 Days)',        description: 'Hide your age on your profile for 30 days.',        amount: 1000 },
-  invisible:         { title: 'Invisible Mode (30 Days)',  description: 'Browse and go invisible on the grid for 30 days.', amount: 3000 },
-  edit_profile:      { title: 'Edit Profile Pass',        description: 'Unlock profile editing permissions.',               amount: 1000 },
-  change_filter:     { title: 'Filter Subscription (30 Days)', description: 'Custom filter override for 30 days.',            amount: 1000 },
-  change_preference: { title: 'Change Profile & Preferences', description: 'One-time unlock to edit profile and preferences.', amount: 1000 },
-  extra_row:         { title: 'Extra Row',                 description: 'Unlock an extra row of nearby users.',               amount: 1000 },
-  unlock_profile:    { title: 'Unlock Profile',            description: 'Unlock your profile for editing.',                   amount: 1000 },
-  raffle_ticket:     { title: 'Raffle Ticket',             description: 'Buy a raffle ticket.',                               amount: 100 },
-};
-
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    const path = url.pathname;
-
-    if (request.method === "OPTIONS") {
-      return new Response(null, {
-        headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" },
-      });
-    }
-
-    // POST /api/auth
-    if (path === "/api/auth" && request.method === "POST") {
-      try {
-        const { initData } = await request.json();
-        if (!initData) return json({ error: "Missing initData" }, 400);
-        // Reject forged initData: HMAC must validate against the bot token.
-        if (!(await verifyInitData(env, initData))) return json({ error: "Invalid initData signature" }, 401);
-        const params = new URLSearchParams(initData);
-        const userStr = params.get("user");
-        if (!userStr) return json({ error: "No user data" }, 400);
-        const tgUser = JSON.parse(userStr);
-        const tgId = `tg_${tgUser.id}`;
-        const profileData = { id: tgId, name: tgUser.first_name || "", username: tgUser.username || null, avatar: tgUser.photo_url || null, last_seen: new Date().toISOString() };
-        const created = await sbPost(env, "rest/v1/profiles", profileData);
-        if (!created) await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(tgId)}`, profileData);
-        const user = await sbGet(env, `rest/v1/profiles?id=eq.${encodeURIComponent(tgId)}`);
-        return json(Array.isArray(user) ? user[0] : user);
-      } catch (e) { return json({ error: e.message }, 500); }
-    }
-
-    // GET /api/nearby
-    if (path === "/api/nearby" && request.method === "GET") {
-      try {
-        const tgId = url.searchParams.get("tg_id") || "0";
-        const lat = parseFloat(url.searchParams.get("lat") || "0");
-        const lng = parseFloat(url.searchParams.get("lng") || "0");
-        const profileId = `tg_${tgId}`;
-        const radius = parseInt(url.searchParams.get("radius") || "50000");
-        const users = await sbGet(env, `rest/v1/profiles?select=*&id=neq.${encodeURIComponent(profileId)}&lat=not.is.null&lng=not.is.null&is_underage=is.false&order=last_seen.desc`);
-        if (!users) return json([]);
-        const result = (Array.isArray(users) ? users : [])
-          .map(u => { const dist = haversineKm(lat, lng, u.lat, u.lng); let age = null; if (u.dob) { const b = new Date(u.dob); age = new Date().getFullYear() - b.getFullYear(); } return { ...u, distance_km: Math.round(dist * 10) / 10, age }; })
-          .filter(u => u.distance_km <= radius / 1000)
-          .sort((a, b) => a.distance_km - b.distance_km)
-          // Never leak raw date of birth; only the derived age leaves the API.
-          .map(u => { const { dob, ...safe } = u; return { ...safe, dob: undefined }; });
-        return json(result);
-      } catch (e) { return json({ error: e.message }, 500); }
-    }
-
-    // GET /api/profile
-    if (path === "/api/profile" && request.method === "GET") {
-      try {
-        const tgId = url.searchParams.get("tg_id") || "0";
-        const user = await sbGet(env, `rest/v1/profiles?id=eq.${encodeURIComponent(`tg_${tgId}`)}`);
-        const u = Array.isArray(user) ? user[0] : user;
-        if (!u) return json({ error: "Not found" }, 404);
-        return json(u);
-      } catch (e) { return json({ error: e.message }, 500); }
-    }
-
-    // POST /api/profile
-    if (path === "/api/profile" && request.method === "POST") {
-      try {
-        const body = await request.json();
-        const { tg_id, dob, gender_identity, seeking_gender, lat, lng, name, username, avatar, height, weight, role_pref, safety_pref, playstyle_pref, where_pref, how_many_pref, hide_age, grid_visible, map_visible, initData } = body;
-        if (!tg_id) return json({ error: "Missing tg_id" }, 400);
-        // Profile writes are authenticated: client must send the initData it
-        // was launched with, and the tg_id inside it must match the write.
-        if (!(await verifyInitData(env, initData || ""))) return json({ error: "Unauthorized" }, 401);
-        const params = new URLSearchParams(initData);
-        const authUser = JSON.parse(params.get("user") || "{}");
-        if (`tg_${authUser.id}` !== `tg_${tg_id}`) return json({ error: "Forbidden" }, 403);
-        const profileId = `tg_${tg_id}`;
-        const updates = { last_seen: new Date().toISOString() };
-        if (dob !== undefined) updates.dob = dob;
-        if (gender_identity !== undefined) updates.gender = gender_identity;
-        if (seeking_gender !== undefined) updates.seeking = seeking_gender;
-        if (lat !== undefined) updates.lat = lat;
-        if (lng !== undefined) updates.lng = lng;
-        if (name !== undefined) updates.name = name;
-        if (username !== undefined) updates.username = username;
-        if (avatar !== undefined) updates.avatar = avatar;
-        if (height !== undefined) updates.height = height;
-        if (weight !== undefined) updates.weight = weight;
-        if (role_pref !== undefined) updates.role_pref = role_pref;
-        if (safety_pref !== undefined) updates.safety_pref = safety_pref;
-        if (playstyle_pref !== undefined) updates.playstyle_pref = playstyle_pref;
-        if (where_pref !== undefined) updates.where_pref = where_pref;
-        if (how_many_pref !== undefined) updates.how_many_pref = how_many_pref;
-        if (hide_age !== undefined) updates.hide_age = hide_age;
-        if (grid_visible !== undefined) updates.grid_visible = grid_visible;
-        if (map_visible !== undefined) updates.map_visible = map_visible;
-        await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, updates);
-        return json({ updated: true });
-      } catch (e) { return json({ error: e.message }, 500); }
-    }
-
-    // POST /api/invoice  (alias: /create-invoice)
-    if ((path === "/api/invoice" || path === "/create-invoice") && request.method === "POST") {
-      try {
-        const body = await request.json();
-        const tg_id = body.tg_id ?? body.userId;
-        const type = body.type;
-        const cfg = ALLOWED_TYPES[type];
-        if (!tg_id) return json({ error: "Missing tg_id/userId" }, 400);
-        if (!cfg) return json({ error: "Invalid type" }, 400);
-        const finalAmount = cfg.amount;
-        const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/createInvoiceLink`, {
-          method: "POST",
-          body: JSON.stringify({ title: cfg.title, description: cfg.description, payload: JSON.stringify({ tg_id, type, finalAmount }), provider_token: "", currency: "XTR", prices: [{ label: cfg.title, amount: finalAmount }] }),
-          headers: { "Content-Type": "application/json" },
-        });
-        const data = await res.json();
-        if (!data.ok) return json({ error: data.description || "Telegram error" }, 500);
-        return json({ invoiceLink: data.result });
-      } catch (e) { return json({ error: e.message }, 500); }
-    }
-
-    // POST /api/webhook — verify Telegram's secret-token header first so
-    // forged updates can't grant paid entitlements. TELEGRAM_WEBHOOK_SECRET
-    // must match the secret_token passed to setWebhook.
-    if (path === "/api/webhook" && request.method === "POST") {
-      // Telegram sends this secret token with every webhook call; reject anything else.
-      const secretHeader = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
-      if (!env.TELEGRAM_WEBHOOK_SECRET || !timingSafeEqual(secretHeader, env.TELEGRAM_WEBHOOK_SECRET)) {
-        return new Response("Forbidden", { status: 403 });
-      }
-      try {
-        const update = await request.json();
-        if (update.pre_checkout_query) {
-          await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery`, {
-            method: "POST", body: JSON.stringify({ pre_checkout_query_id: update.pre_checkout_query.id, ok: true }),
-            headers: { "Content-Type": "application/json" },
-          });
-          return new Response("OK");
-        }
-        if (update.message?.successful_payment) {
-          const payload = JSON.parse(update.message.successful_payment.invoice_payload);
-          const expiry = new Date(Date.now() + 30 * 86400000).toISOString();
-          const txResult = await sbPost(env, "rest/v1/transactions", {
-            user_id: payload.tg_id, type: payload.type, amount: payload.finalAmount, currency: "XTR",
-            provider_payment_charge_id: update.message.successful_payment.provider_payment_charge_id || null,
-            telegram_payment_charge_id: update.message.successful_payment.telegram_payment_charge_id || null,
-          });
-          if (!txResult) return new Response("Duplicate or invalid transaction", { status: 400 });
-          const profileId = `tg_${payload.tg_id}`;
-          if (payload.type === "hide_age") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { hide_age: true, hide_age_expiry: expiry });
-          else if (payload.type === "invisible") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { grid_visible: false, invisible_expiry: expiry });
-          else if (payload.type === "change_preference" || payload.type === "edit_profile") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { edit_profile_pass: true, edit_profile_expiry: expiry });
-          else if (payload.type === "change_filter") {
-            const existing = await sbGet(env, `rest/v1/profiles?select=filter_sub_expiry&id=eq.${encodeURIComponent(profileId)}`);
-            const prev = (Array.isArray(existing) ? existing[0] : existing)?.filter_sub_expiry;
-            const base = prev && new Date(prev).getTime() > Date.now() ? new Date(prev).getTime() : Date.now();
-            await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { filter_sub_expiry: new Date(base + 30 * 86400000).toISOString() });
-          }
-        }
-        return new Response("OK");
-      } catch { return new Response("OK"); }
-    }
-
-    // POST /telegram-webhook — bot updates, secret-token protected
-    if (path === "/telegram-webhook" && request.method === "POST") {
-      if (env.TELEGRAM_WEBHOOK_SECRET) {
-        const got = request.headers.get("x-telegram-bot-api-secret-token");
-        if (got !== env.TELEGRAM_WEBHOOK_SECRET) return new Response("Forbidden", { status: 403 });
-      }
-      try {
-        const update = await request.json();
-        if (update.pre_checkout_query) {
-          await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery`, {
-            method: "POST", body: JSON.stringify({ pre_checkout_query_id: update.pre_checkout_query.id, ok: true }),
-            headers: { "Content-Type": "application/json" },
-          });
-          return new Response("OK");
-        }
-        if (update.message?.successful_payment) {
-          const payload = JSON.parse(update.message.successful_payment.invoice_payload);
-          const expiry = new Date(Date.now() + 30 * 86400000).toISOString();
-          const txResult = await sbPost(env, "rest/v1/transactions", {
-            user_id: payload.tg_id, type: payload.type, amount: payload.finalAmount, currency: "XTR",
-            provider_payment_charge_id: update.message.successful_payment.provider_payment_charge_id || null,
-            telegram_payment_charge_id: update.message.successful_payment.telegram_payment_charge_id || null,
-          });
-          if (!txResult) return new Response("Duplicate or invalid transaction", { status: 400 });
-          const profileId = `tg_${payload.tg_id}`;
-          if (payload.type === "hide_age") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { hide_age: true, hide_age_expiry: expiry });
-          else if (payload.type === "invisible") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { grid_visible: false, invisible_expiry: expiry });
-          else if (payload.type === "change_preference" || payload.type === "edit_profile") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { edit_profile_pass: true, edit_profile_expiry: expiry });
-          else if (payload.type === "change_filter") {
-            const existing = await sbGet(env, `rest/v1/profiles?select=filter_sub_expiry&id=eq.${encodeURIComponent(profileId)}`);
-            const prev = (Array.isArray(existing) ? existing[0] : existing)?.filter_sub_expiry;
-            const base = prev && new Date(prev).getTime() > Date.now() ? new Date(prev).getTime() : Date.now();
-            await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { filter_sub_expiry: new Date(base + 30 * 86400000).toISOString() });
-          }
-        }
-        return new Response("OK");
-      } catch { return new Response("OK"); }
-    }
-
-    // GET/POST /api/messages
-    if (path === "/api/messages" && request.method === "GET") {
-      try {
-        const limit = parseInt(url.searchParams.get("limit") || "10");
-        return json(await sbGet(env, `rest/v1/flying_messages?order=created_at.desc&limit=${limit}`) || []);
-      } catch (e) { return json({ error: e.message }, 500); }
-    }
-    if (path === "/api/messages" && request.method === "POST") {
-      try {
-        const { tg_id, text, from_name } = await request.json();
-        if (!text || !text.trim()) return json({ error: "Missing text" }, 400);
-        await sbPost(env, "rest/v1/flying_messages", { id: crypto.randomUUID(), tg_id: tg_id || 0, text: text.trim().slice(0, 200), from_name: from_name || "Anonymous" });
-        return json({ ok: true });
-      } catch (e) { return json({ error: e.message }, 500); }
-    }
-
-    // GET /api/raffle
-    if (path === "/api/raffle" && request.method === "GET") {
-      const state = await sbGet(env, "rest/v1/raffle_state?id=eq.1");
-      return json(Array.isArray(state) ? state[0] : state || { prize_name: "Ultimate Bundle", tickets_sold: 0 });
-    }
-
-    // POST /api/reset-profile
-    if (path === "/api/reset-profile" && request.method === "POST") {
-      const { caller_id, target_id } = await request.json();
-      if (!caller_id || !target_id) return json({ error: "Missing params" }, 400);
-      if (caller_id !== 1231127407) return json({ error: "Forbidden" }, 403);
-      await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(`tg_${target_id}`)}`, {
-        name: null, username: null, avatar: null, dob: null, height: null, weight: null,
-        gender: "Male", seeking: "Male", role_pref: null, safety_pref: null, playstyle_pref: null,
-        where_pref: null, how_many_pref: null, hide_age: false, grid_visible: true, map_visible: false,
-        is_underage: false, hide_age_expiry: null, invisible_expiry: null,
-      });
-      return json({ reset: true });
-    }
-
-    // POST /api/reset-all-underage (admin only)
-    if (path === "/api/reset-all-underage" && request.method === "POST") {
-      const { caller_id } = await request.json();
-      if (caller_id !== 1231127407) return json({ error: "Forbidden" }, 403);
-      await sbPatch(env, "rest/v1/profiles?is_underage=eq.true", {
-        name: null, username: null, avatar: null, dob: null, height: null, weight: null,
-        gender: "Male", seeking: "Male", role_pref: null, safety_pref: null, playstyle_pref: null,
-        where_pref: null, how_many_pref: null, hide_age: false, grid_visible: true, map_visible: false,
-        is_underage: false, hide_age_expiry: null, invisible_expiry: null,
-      });
-      return json({ reset: true });
-    }
-
-    // GET /api/health
-    if (path === "/api/health" || path === "/health") return json({ ok: true, version: "rls-hardened-1.1" });
-
-    return json({ error: "Not found" }, 404);
-  },
-};
-
-
-################################################################################
-# FILE: supabase/migrations/001_initial_schema.sql
-################################################################################
-
+================================================================================
+FILE: supabase/migrations/001_initial_schema.sql
+================================================================================
 -- Who's Nearby — 001: initial schema
 -- Idempotent: safe to run on a fresh project or an existing one.
 
@@ -2447,10 +1949,9 @@ create policy "Allow public insert on transactions" on public.transactions for i
 notify pgrst, 'reload schema';
 
 
-################################################################################
-# FILE: supabase/migrations/002_age_enforcement_and_nearby.sql
-################################################################################
-
+================================================================================
+FILE: supabase/migrations/002_age_enforcement_and_nearby.sql
+================================================================================
 -- Who's Nearby — 002: server-side age enforcement + nearby search (Haversine)
 -- Idempotent: uses create or replace / drop-if-exists everywhere.
 
@@ -2606,10 +2107,9 @@ $$;
 notify pgrst, 'reload schema';
 
 
-################################################################################
-# FILE: supabase/migrations/003_private_notes_and_filter_sub.sql
-################################################################################
-
+================================================================================
+FILE: supabase/migrations/003_private_notes_and_filter_sub.sql
+================================================================================
 -- 003_private_notes_and_filter_sub.sql
 -- Adds private_notes column (admin-only private notes on profiles)
 -- and filter_sub_expiry (server-side filter subscription expiry).
@@ -2631,10 +2131,9 @@ begin
 end $$;
 
 
-################################################################################
-# FILE: supabase/migrations/004_rls_hardening.sql
-################################################################################
-
+================================================================================
+FILE: supabase/migrations/004_rls_hardening.sql
+================================================================================
 -- 004_rls_hardening.sql
 -- Locks down anon (client-side) writes: everything writable now goes through
 -- the Worker using the service-role key. Anon keeps read-only access.
@@ -2683,102 +2182,481 @@ create policy "Allow public select on purchases" on public.purchases
 notify pgrst, 'reload schema';
 
 
-################################################################################
-# FILE: supabase/migrations/004_webhook_secret.sql
-################################################################################
-
--- 004_webhook_secret.sql
--- Telegram webhook secret verification for the payment webhook.
---
--- No schema change is required. The worker now checks the
--- X-Telegram-Bot-Api-Secret-Token header against the
--- TELEGRAM_WEBHOOK_SECRET secret on every /api/webhook call, so forged
--- update payloads can no longer grant paid entitlements.
---
--- Deployment steps (already performed when this migration ships):
---   1. Worker secret set: TELEGRAM_WEBHOOK_SECRET (same value both sides).
---   2. Telegram setWebhook re-registered with secret_token=<same value>,
---      so Telegram stamps every update with that header.
-
--- Optional: record the migration for audit. Safe to re-run.
-create table if not exists public.schema_migrations (
-  version text primary key,
-  name text not null,
-  applied_at timestamp with time zone not null default now()
-);
-
-insert into public.schema_migrations (version, name)
-values ('004', 'webhook_secret')
-on conflict (version) do nothing;
+================================================================================
+FILE: supabase/migrations/004_webhook_secret.sql
+================================================================================
 
 
-################################################################################
-# FILE: public/tonconnect-manifest.json
-################################################################################
-
+================================================================================
+FILE: tsconfig.app.json
+================================================================================
 {
-  "url": "https://teleclaw-dispatch.silent-flower-a7c2.workers.dev/f6710d69cb37",
-  "name": "Who's Nearby",
-  "iconUrl": "https://teleclaw-dispatch.silent-flower-a7c2.workers.dev/f6710d69cb37/favicon.png",
-  "termsOfUseUrl": "",
-  "privacyPolicyUrl": ""
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
 }
 
 
-################################################################################
-# FILE: set_supabase_secrets.cjs
-################################################################################
+================================================================================
+FILE: tsconfig.json
+================================================================================
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
 
-// GitHub Actions secret update: VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
-const https = require("https");
-const sodium = require("/tmp/node_modules/libsodium-wrappers");
 
-const REPO = "mileschan852/WhosNearbyBot";
-const TOKEN = process.env.SECRET_GITHUB_PASSWORD;
-const SUPABASE_URL = "https://uslxmetypzqnuutbgbkl.supabase.co";
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+================================================================================
+FILE: tsconfig.node.json
+================================================================================
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "skipLibCheck": true,
 
-function api(path, data, method) {
-  return new Promise((resolve, reject) => {
-    const body = data ? JSON.stringify(data) : null;
-    const req = https.request(
-      {
-        hostname: "api.github.com",
-        path: `/repos/${REPO}/${path}`,
-        method: method || "GET",
-        headers: {
-          Authorization: `token ${TOKEN}`,
-          Accept: "application/vnd.github+json",
-          "User-Agent": "secret-updater",
-          "Content-Length": body ? Buffer.byteLength(body) : 0,
-        },
-      },
-      (res) => {
-        let out = "";
-        res.on("data", (c) => (out += c));
-        res.on("end", () => {
-          if (res.statusCode >= 300) return reject(new Error(`${res.statusCode} ${out}`));
-          resolve(out ? JSON.parse(out) : {});
-        });
-      }
-    );
-    req.on("error", reject);
-    if (body) req.write(body);
-    req.end();
+    /* Bundler mode */
+    "module": "nodenext",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["vite.config.ts"]
+}
+
+
+================================================================================
+FILE: vercel.json
+================================================================================
+{
+  "framework": "vite",
+  "buildCommand": "tsc -b && vite build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+
+================================================================================
+FILE: vite.config.ts
+================================================================================
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// I am forcing relative paths here so GitHub Pages can actually find your files.
+export default defineConfig({
+  plugins: [react()],
+  base: './', 
+})
+
+
+================================================================================
+FILE: worker.js
+================================================================================
+// WhosNearbyBot worker — API-only, RLS-hardened version.
+// Secrets (env): TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_ANON_KEY,
+//                SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_WEBHOOK_SECRET
+// TELEGRAM_WEBHOOK_SECRET set => /telegram-webhook requires the
+// X-Telegram-Bot-Api-Secret-Token header to match (setWebhook secret_token).
+// Writes go through the service-role key when bound (bypasses RLS);
+// anon key is read-only fallback. Migration 004 makes anon read-only.
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": "*" },
   });
 }
 
-(async () => {
-  await sodium.ready;
-  const pk = await api("actions/secrets/public-key");
-  for (const [name, value] of [["VITE_SUPABASE_URL", SUPABASE_URL], ["VITE_SUPABASE_ANON_KEY", SUPABASE_ANON_KEY]]) {
-    const sealed = sodium.crypto_box_seal(
-      sodium.from_string(value),
-      sodium.from_base64(pk.key, sodium.base64_variants.ORIGINAL)
-    );
-    const b64 = sodium.to_base64(sealed, sodium.base64_variants.ORIGINAL);
-    await api("actions/secrets/" + name, { encrypted_value: b64, key_id: pk.key_id }, "PUT");
-    console.log(name + " secret updated");
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Telegram id of the sole admin allowed to force-reset any profile.
+const ADMIN_ID = 1231127407;
+
+// Age from full month/day math so a 17-year-old never rounds up to 18.
+function computeAge(dob) {
+  if (!dob) return null;
+  const b = new Date(dob);
+  if (isNaN(b.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+  return age;
+}
+
+function sbHeaders(env, write = false) {
+  const key = write && env.SUPABASE_SERVICE_ROLE_KEY ? env.SUPABASE_SERVICE_ROLE_KEY : env.SUPABASE_ANON_KEY;
+  return {
+    "Content-Type": "application/json",
+    "apikey": key,
+    "Authorization": `Bearer ${key}`,
+  };
+}
+
+async function sbGet(env, path) {
+  const res = await fetch(`${env.SUPABASE_URL}/${path}`, { headers: sbHeaders(env) });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function sbPost(env, path, body) {
+  const res = await fetch(`${env.SUPABASE_URL}/${path}`, {
+    method: "POST",
+    headers: { ...sbHeaders(env, true), "Prefer": "return=representation" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function sbPatch(env, path, body) {
+  const res = await fetch(`${env.SUPABASE_URL}/${path}`, {
+    method: "PATCH",
+    headers: { ...sbHeaders(env, true), "Prefer": "return=minimal" },
+    body: JSON.stringify(body),
+  });
+  return res.ok;
+}
+
+// ---- Auth helpers -----------------------------------------------------------
+
+// Verify Telegram's X-Telegram-Bot-Api-Secret-Token webhook header (constant-time).
+function timingSafeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+// Validate Telegram WebApp initData HMAC per
+// https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+async function verifyInitData(env, initData) {
+  if (!env.TELEGRAM_BOT_TOKEN) return false; // cannot validate without the token
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash) return false;
+  // Reject stale/replayed initData: Telegram recommends a max age (24h here).
+  const authDate = parseInt(params.get("auth_date") || "0", 10);
+  if (!authDate || Date.now() / 1000 - authDate > 86400) return false;
+  params.delete("hash");
+  params.delete("signature");
+  const dataCheckString = [...params.entries()]
+    .map(([k, v]) => `${k}=${v}`)
+    .sort()
+    .join("\n");
+  const enc = new TextEncoder();
+  const secretKey = await crypto.subtle.importKey(
+    "raw", enc.encode("WebAppData"), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const secret = await crypto.subtle.sign("HMAC", secretKey, enc.encode(env.TELEGRAM_BOT_TOKEN));
+  const signKey = await crypto.subtle.importKey(
+    "raw", secret, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", signKey, enc.encode(dataCheckString));
+  const hex = [...new Uint8Array(signature)].map(b => b.toString(16).padStart(2, "0")).join("");
+  return timingSafeEqual(hex, hash);
+}
+
+const ALLOWED_TYPES = {
+  hide_age:          { title: 'Hide Age (30 Days)',        description: 'Hide your age on your profile for 30 days.',        amount: 1000 },
+  invisible:         { title: 'Invisible Mode (30 Days)',  description: 'Browse and go invisible on the grid for 30 days.', amount: 3000 },
+  edit_profile:      { title: 'Edit Profile Pass',        description: 'Unlock profile editing permissions.',               amount: 1000 },
+  change_filter:     { title: 'Filter Subscription (30 Days)', description: 'Custom filter override for 30 days.',            amount: 1000 },
+  change_preference: { title: 'Change Profile & Preferences', description: 'One-time unlock to edit profile and preferences.', amount: 1000 },
+  extra_row:         { title: 'Extra Row',                 description: 'Unlock an extra row of nearby users.',               amount: 1000 },
+  unlock_profile:    { title: 'Unlock Profile',            description: 'Unlock your profile for editing.',                   amount: 1000 },
+  raffle_ticket:     { title: 'Raffle Ticket',             description: 'Buy a raffle ticket.',                               amount: 100 },
+};
+
+// Shared Telegram payment handling for both webhook routes. Callers MUST
+// verify the secret-token header before invoking this.
+async function handlePaymentUpdate(env, update) {
+  if (update.pre_checkout_query) {
+    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerPreCheckoutQuery`, {
+      method: "POST", body: JSON.stringify({ pre_checkout_query_id: update.pre_checkout_query.id, ok: true }),
+      headers: { "Content-Type": "application/json" },
+    });
+    return new Response("OK");
   }
-})().catch((e) => { console.error(e.message); process.exit(1); });
+  if (update.message?.successful_payment) {
+    const payload = JSON.parse(update.message.successful_payment.invoice_payload);
+    const expiry = new Date(Date.now() + 30 * 86400000).toISOString();
+    const txResult = await sbPost(env, "rest/v1/transactions", {
+      user_id: payload.tg_id, type: payload.type, amount: payload.finalAmount, currency: "XTR",
+      provider_payment_charge_id: update.message.successful_payment.provider_payment_charge_id || null,
+      telegram_payment_charge_id: update.message.successful_payment.telegram_payment_charge_id || null,
+    });
+    if (!txResult) return new Response("Duplicate or invalid transaction", { status: 400 });
+    const profileId = `tg_${payload.tg_id}`;
+    if (payload.type === "hide_age") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { hide_age: true, hide_age_expiry: expiry });
+    else if (payload.type === "invisible") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { grid_visible: false, invisible_expiry: expiry });
+    else if (payload.type === "change_preference" || payload.type === "edit_profile") await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { edit_profile_pass: true, edit_profile_expiry: expiry });
+    else if (payload.type === "change_filter") {
+      const existing = await sbGet(env, `rest/v1/profiles?select=filter_sub_expiry&id=eq.${encodeURIComponent(profileId)}`);
+      const prev = (Array.isArray(existing) ? existing[0] : existing)?.filter_sub_expiry;
+      const base = prev && new Date(prev).getTime() > Date.now() ? new Date(prev).getTime() : Date.now();
+      await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, { filter_sub_expiry: new Date(base + 30 * 86400000).toISOString() });
+    }
+  }
+  return new Response("OK");
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" },
+      });
+    }
+
+    // POST /api/auth
+    if (path === "/api/auth" && request.method === "POST") {
+      try {
+        const { initData } = await request.json();
+        if (!initData) return json({ error: "Missing initData" }, 400);
+        // Reject forged initData: HMAC must validate against the bot token.
+        if (!(await verifyInitData(env, initData))) return json({ error: "Invalid initData signature" }, 401);
+        const params = new URLSearchParams(initData);
+        const userStr = params.get("user");
+        if (!userStr) return json({ error: "No user data" }, 400);
+        const tgUser = JSON.parse(userStr);
+        const tgId = `tg_${tgUser.id}`;
+        const profileData = { id: tgId, name: tgUser.first_name || "", username: tgUser.username || null, avatar: tgUser.photo_url || null, last_seen: new Date().toISOString() };
+        const created = await sbPost(env, "rest/v1/profiles", profileData);
+        if (!created) await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(tgId)}`, profileData);
+        const user = await sbGet(env, `rest/v1/profiles?id=eq.${encodeURIComponent(tgId)}`);
+        return json(Array.isArray(user) ? user[0] : user);
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
+    // GET /api/nearby
+    if (path === "/api/nearby" && request.method === "GET") {
+      try {
+        const tgId = url.searchParams.get("tg_id") || "0";
+        const lat = parseFloat(url.searchParams.get("lat") || "0");
+        const lng = parseFloat(url.searchParams.get("lng") || "0");
+        const profileId = `tg_${tgId}`;
+        // Clamp radius (max 100km) so a caller can't request the whole dataset.
+        const radius = Math.min(Math.max(parseInt(url.searchParams.get("radius") || "50000", 10) || 50000, 0), 100000);
+        // Only return rows the caller is entitled to see: visible on the grid
+        // OR opted into the map. Enforces paid Invisible Mode server-side so a
+        // direct API call can't leak a hidden user's location.
+        const users = await sbGet(env, `rest/v1/profiles?select=*&id=neq.${encodeURIComponent(profileId)}&lat=not.is.null&lng=not.is.null&is_underage=is.false&or=(grid_visible.is.true,map_visible.is.true)&order=last_seen.desc`);
+        if (!users) return json([]);
+        const result = (Array.isArray(users) ? users : [])
+          .map(u => { const dist = haversineKm(lat, lng, u.lat, u.lng); return { ...u, distance_km: Math.round(dist * 10) / 10, age: computeAge(u.dob) }; })
+          .filter(u => u.distance_km <= radius / 1000)
+          .sort((a, b) => a.distance_km - b.distance_km)
+          // Never leak raw date of birth; only the derived age leaves the API.
+          .map(u => { const { dob, ...safe } = u; return { ...safe, dob: undefined }; });
+        return json(result);
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
+    // GET /api/profile
+    if (path === "/api/profile" && request.method === "GET") {
+      try {
+        const tgId = url.searchParams.get("tg_id") || "0";
+        const user = await sbGet(env, `rest/v1/profiles?id=eq.${encodeURIComponent(`tg_${tgId}`)}`);
+        const u = Array.isArray(user) ? user[0] : user;
+        if (!u) return json({ error: "Not found" }, 404);
+        return json(u);
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
+    // POST /api/profile
+    if (path === "/api/profile" && request.method === "POST") {
+      try {
+        const body = await request.json();
+        const { tg_id, dob, gender_identity, seeking_gender, lat, lng, name, username, avatar, height, weight, role_pref, safety_pref, playstyle_pref, where_pref, how_many_pref, hide_age, grid_visible, map_visible, initData } = body;
+        if (!tg_id) return json({ error: "Missing tg_id" }, 400);
+        // Profile writes are authenticated: client must send the initData it
+        // was launched with, and the tg_id inside it must match the write.
+        if (!(await verifyInitData(env, initData || ""))) return json({ error: "Unauthorized" }, 401);
+        const params = new URLSearchParams(initData);
+        const authUser = JSON.parse(params.get("user") || "{}");
+        if (`tg_${authUser.id}` !== `tg_${tg_id}`) return json({ error: "Forbidden" }, 403);
+        const profileId = `tg_${tg_id}`;
+        const updates = { last_seen: new Date().toISOString() };
+        if (dob !== undefined) updates.dob = dob;
+        if (gender_identity !== undefined) updates.gender = gender_identity;
+        if (seeking_gender !== undefined) updates.seeking = seeking_gender;
+        if (lat !== undefined) updates.lat = lat;
+        if (lng !== undefined) updates.lng = lng;
+        if (name !== undefined) updates.name = name;
+        if (username !== undefined) updates.username = username;
+        if (avatar !== undefined) updates.avatar = avatar;
+        if (height !== undefined) updates.height = height;
+        if (weight !== undefined) updates.weight = weight;
+        if (role_pref !== undefined) updates.role_pref = role_pref;
+        if (safety_pref !== undefined) updates.safety_pref = safety_pref;
+        if (playstyle_pref !== undefined) updates.playstyle_pref = playstyle_pref;
+        if (where_pref !== undefined) updates.where_pref = where_pref;
+        if (how_many_pref !== undefined) updates.how_many_pref = how_many_pref;
+        if (hide_age !== undefined) updates.hide_age = hide_age;
+        if (grid_visible !== undefined) updates.grid_visible = grid_visible;
+        if (map_visible !== undefined) updates.map_visible = map_visible;
+        await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, updates);
+        return json({ updated: true });
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
+    // POST /api/invoice  (alias: /create-invoice)
+    if ((path === "/api/invoice" || path === "/create-invoice") && request.method === "POST") {
+      try {
+        const body = await request.json();
+        const tg_id = body.tg_id ?? body.userId;
+        const type = body.type;
+        const cfg = ALLOWED_TYPES[type];
+        if (!tg_id) return json({ error: "Missing tg_id/userId" }, 400);
+        if (!cfg) return json({ error: "Invalid type" }, 400);
+        const finalAmount = cfg.amount;
+        const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/createInvoiceLink`, {
+          method: "POST",
+          body: JSON.stringify({ title: cfg.title, description: cfg.description, payload: JSON.stringify({ tg_id, type, finalAmount }), provider_token: "", currency: "XTR", prices: [{ label: cfg.title, amount: finalAmount }] }),
+          headers: { "Content-Type": "application/json" },
+        });
+        const data = await res.json();
+        if (!data.ok) return json({ error: data.description || "Telegram error" }, 500);
+        return json({ invoiceLink: data.result });
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
+    // POST /api/webhook — verify Telegram's secret-token header first so
+    // forged updates can't grant paid entitlements. TELEGRAM_WEBHOOK_SECRET
+    // must match the secret_token passed to setWebhook.
+    if (path === "/api/webhook" && request.method === "POST") {
+      // Telegram sends this secret token with every webhook call; reject anything else.
+      const secretHeader = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
+      if (!env.TELEGRAM_WEBHOOK_SECRET || !timingSafeEqual(secretHeader, env.TELEGRAM_WEBHOOK_SECRET)) {
+        return new Response("Forbidden", { status: 403 });
+      }
+      try {
+        return await handlePaymentUpdate(env, await request.json());
+      } catch { return new Response("OK"); }
+    }
+
+    // POST /telegram-webhook — bot updates, secret-token protected. Fails
+    // closed: without TELEGRAM_WEBHOOK_SECRET no update is accepted, so a
+    // forged successful_payment can never grant a paid entitlement for free.
+    if (path === "/telegram-webhook" && request.method === "POST") {
+      const secretHeader = request.headers.get("x-telegram-bot-api-secret-token") || "";
+      if (!env.TELEGRAM_WEBHOOK_SECRET || !timingSafeEqual(secretHeader, env.TELEGRAM_WEBHOOK_SECRET)) {
+        return new Response("Forbidden", { status: 403 });
+      }
+      try {
+        return await handlePaymentUpdate(env, await request.json());
+      } catch { return new Response("OK"); }
+    }
+
+    // GET/POST /api/messages
+    if (path === "/api/messages" && request.method === "GET") {
+      try {
+        const limit = parseInt(url.searchParams.get("limit") || "10");
+        return json(await sbGet(env, `rest/v1/flying_messages?order=created_at.desc&limit=${limit}`) || []);
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+    if (path === "/api/messages" && request.method === "POST") {
+      try {
+        const { text, initData } = await request.json();
+        // Authenticate: the sender identity comes from verified initData, not
+        // client-supplied fields, so no one can post as another name/id.
+        if (!(await verifyInitData(env, initData || ""))) return json({ error: "Unauthorized" }, 401);
+        if (!text || !text.trim()) return json({ error: "Missing text" }, 400);
+        const authUser = JSON.parse(new URLSearchParams(initData).get("user") || "{}");
+        await sbPost(env, "rest/v1/flying_messages", { id: crypto.randomUUID(), tg_id: authUser.id || 0, text: text.trim().slice(0, 200), from_name: (authUser.first_name || "Anonymous").slice(0, 60) });
+        return json({ ok: true });
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
+    // GET /api/raffle
+    if (path === "/api/raffle" && request.method === "GET") {
+      const state = await sbGet(env, "rest/v1/raffle_state?id=eq.1");
+      return json(Array.isArray(state) ? state[0] : state || { prize_name: "Ultimate Bundle", tickets_sold: 0 });
+    }
+
+    // POST /api/reset-profile — admin-only force reset of a single profile.
+    // Authorization comes from verified initData (HMAC + freshness), and the
+    // decoded Telegram id must equal ADMIN_ID. A client-supplied caller_id is
+    // never trusted. Also clears the target's underage flag.
+    if (path === "/api/reset-profile" && request.method === "POST") {
+      try {
+        const { target_id, initData } = await request.json();
+        if (!target_id) return json({ error: "Missing params" }, 400);
+        if (!(await verifyInitData(env, initData || ""))) return json({ error: "Unauthorized" }, 401);
+        const authUser = JSON.parse(new URLSearchParams(initData).get("user") || "{}");
+        if (Number(authUser.id) !== ADMIN_ID) return json({ error: "Forbidden" }, 403);
+        await sbPatch(env, `rest/v1/profiles?id=eq.${encodeURIComponent(`tg_${target_id}`)}`, {
+          name: null, username: null, avatar: null, dob: null, height: null, weight: null,
+          gender: "Male", seeking: "Male", role_pref: null, safety_pref: null, playstyle_pref: null,
+          where_pref: null, how_many_pref: null, hide_age: false, grid_visible: true, map_visible: false,
+          is_underage: false, hide_age_expiry: null, invisible_expiry: null,
+        });
+        return json({ reset: true });
+      } catch (e) { console.error("[worker]", e && e.message); return json({ error: "Internal error" }, 500); }
+    }
+
+    // GET /api/health
+    if (path === "/api/health" || path === "/health") return json({ ok: true, version: "rls-hardened-1.1" });
+
+    return json({ error: "Not found" }, 404);
+  },
+};
+
+
+================================================================================
+FILE: wrangler.toml
+================================================================================
+name = "whosnearby-bot"
+main = "worker.js"
+compatibility_date = "2026-08-04"
+compatibility_flags = ["nodejs_compat"]
+
+# All secrets are injected at deploy time (wrangler secret put / hosting env vars).
+# NEVER commit real values here. See .env.example for the variable names.
+
 

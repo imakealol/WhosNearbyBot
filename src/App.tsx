@@ -66,12 +66,11 @@ const translations: Record<LangKey, Record<string, string>> = {
     privateNote: 'Private note', notePlaceholder: 'Private note (100 chars max)',
     forceReset: 'Force reset', gamesApps: 'Games & Apps', resetProfile: 'Reset Profile',
     selectedUser: 'Selected user: {n}', profileReset: 'Profile reset.', resetFailed: 'Reset failed.',
-    forceResetConfirm: 'Force reset profile of {n}?',
-    resetAllUnderage: 'Reset all underage', resetAllUnderageConfirm: 'Reset ALL underage profiles?'
+    forceResetConfirm: 'Force reset profile of {n}?'
   },
   'zh-CN': {
     loading: '正在加载应用...', locationRequired: '需要位置权限', locationMessage: '使用"附近"功能必须获得位置权限。请在浏览器或 Telegram 设置中启用位置访问并重新启动应用。', accessDenied: '拒绝访问', underageMessage: '本应用仅限成年人使用。由于年龄限制，该账户已被锁定。', completeProfile: '完善您的个人资料', profileWarning: '警告：此信息将来无法更改。此处填写的内容会影响您可以看到和互动的用户。', dob: '出生日期：', imA: '我是', seeking: '寻找', man: '男性', woman: '女性', nonBinary: '非二元性别', men: '男性', women: '女性', everyone: '所有人', height: '身高：', selectHeight: '选择身高', weight: '体重：', selectWeight: '选择体重', tapToChange: '点击更改您的偏好：', mode: '模式：', browsingOnly: '仅浏览', onlineOnly: '仅在线', meetUp: '约会中', saveProfile: '保存资料并继续', whosNearby: '附近的人', filter: '筛选', refresh: '刷新', grid: '网格', chat: '聊天', map: '地图', wallet: '钱包', filterUsers: '筛选用户', ageRange: '年龄范围', preferenceMatcher: '偏好匹配器', rolePreference: '角色偏好', safetyPreference: '安全偏好', playstylePreference: '游戏风格偏好', groupSize: '群组人数', applyFilters: '应用筛选', ageHidden: '年龄已隐藏', ageShown: '年龄已显示', expires: '到期时间：', sendMessage: '发送消息', unlockPreference: '更改资料与偏好', iGotStuff: '我有货', unlockPreferencePrompt: '更改个人资料与偏好需要支付 1000 Telegram Stars。是否继续支付？', invisiblePrompt: '隐身需要订阅 30 天，费用为 3000 Telegram Stars。是否继续支付？', hideAgePrompt: '隐藏年龄需要订阅 30 天，费用为 1000 Telegram Stars。是否继续支付？', filterSubPrompt: '自定义此筛选条件需要订阅。是否继续支付？', paymentCancelled: '支付已取消或失败。', errorSaving: '保存资料出错：', fillAll: '请填写所有必填问题以继续。',
-    'Versatile': '0.5 (可攻可受)', 'Top': '1 (攻)', 'Bottom': '0 (受)', 'Side': 'Side (边缘)', 'VT': '可攻可受 / 攻', 'VB': '可攻可受 / 受',
+    'Versatile': '0.5 (��攻可受)', 'Top': '1 (攻)', 'Bottom': '0 (受)', 'Side': 'Side (边缘)', 'VT': '可攻可受 / 攻', 'VB': '可攻可受 / 受',
     'Safe': 'Safe (戴套)', 'Raw': 'Raw (无套)',
     'Clean': 'Clean (无药)', 'Party': 'Party (嗨药)', 'Party✓': 'Party✓',
     '1on1_setup': '单对单 (仅限1on1)', 'group_setup': '群组 (仅限群组)', 'DoesntMatter_setup': '无所谓',
@@ -117,7 +116,7 @@ const translations: Record<LangKey, Record<string, string>> = {
     subscribedUntil: '購読期限: {d}', expired: '期限切れ',
     privateNote: 'プライベートメモ', notePlaceholder: 'プライベートメモ (最大100文字)',
     forceReset: '強制リセット', gamesApps: 'ゲーム&アプリ',
-    selectedUser: '選択したユーザー: {n}', profileReset: 'プロフィールをリセットしました。', resetFailed: 'リセットに失敗しました。',
+    selectedUser: '選択したユーザー: {n}', profileReset: 'プロフィールをリセットしました。', resetFailed: 'リセットに失敗しま��た。',
     forceResetConfirm: '{n} のプロフィールを強制リセットしますか？'
   },
   'ko': {
@@ -1049,19 +1048,7 @@ export default function App() {
     try {
       await fetch(`${PAYMENT_WORKER_URL}/api/reset-profile`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caller_id: currentUser?.id ? Number(String(currentUser.id).replace(/^tg_/, '')) : null, target_id: Number(String(selectedProfile.id).replace(/^tg_/, '')) }),
-      });
-      alert(t('profileReset'));
-    } catch (e) { console.error(e); alert(t('resetFailed')); }
-  };
-
-  const handleResetAllUnderage = async () => {
-    if (!isAdmin || !PAYMENT_WORKER_URL) return;
-    if (!window.confirm(t('resetAllUnderageConfirm'))) return;
-    try {
-      await fetch(`${PAYMENT_WORKER_URL}/api/reset-all-underage`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caller_id: currentUser?.id ? Number(String(currentUser.id).replace(/^tg_/, '')) : null }),
+        body: JSON.stringify({ target_id: Number(String(selectedProfile.id).replace(/^tg_/, '')), initData: window.Telegram?.WebApp?.initData || '' }),
       });
       alert(t('profileReset'));
     } catch (e) { console.error(e); alert(t('resetFailed')); }
@@ -1272,9 +1259,6 @@ export default function App() {
               <div style={{ position: 'absolute', top: '14px', right: '14px', zIndex: 5, display: 'flex', gap: '6px' }}>
                 <button type="button" onClick={(e) => { e.stopPropagation(); handleResetProfile(); }} style={{ padding: '2px 8px', backgroundColor: '#1d4ed8', border: '1px solid #444', borderRadius: '6px', fontSize: '12px', color: '#fff', cursor: 'pointer' }} title={t('resetProfile')}>{t('resetProfile')}</button>
               </div>
-            )}
-            {isViewingSelf && isAdmin && (
-              <button type="button" onClick={(e) => { e.stopPropagation(); handleResetAllUnderage(); }} style={{ position: 'absolute', top: '14px', left: '14px', zIndex: 5, padding: '2px 8px', backgroundColor: '#7f1d1d', border: '1px solid #444', borderRadius: '6px', fontSize: '12px', color: '#fff', cursor: 'pointer' }} title={t('resetAllUnderage')}>{t('resetAllUnderage')}</button>
             )}
             <div style={{ width: '40px', height: '4px', backgroundColor: '#444', borderRadius: '2px', marginBottom: '16px' }} />
             <div style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>

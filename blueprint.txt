@@ -104,19 +104,22 @@ and src/main.tsx (TONCONNECT_MANIFEST_URL) and must be repointed on any rebuild
 (see OPEN ITEMS).
 
 Admin identity (two independent mechanisms):
-  - Frontend: admin is granted by Telegram USERNAME — 'mileschan852' or
-    'hkmembersonly' (case-insensitive). Sets isAdmin, which unlocks the filter
-    menu for free, the Force Reset button, and free profile editing.
-  - Worker: the /api/reset-profile and /api/reset-all-underage guards compare
-    the request body's caller_id against the hardcoded Telegram id 1231127407.
-  There is no server-side admin secret; both mechanisms are client-supplied and
-  spoofable (see SECURITY POSTURE).
+  - Frontend (UI only): admin is granted by Telegram USERNAME — 'mileschan852'
+    or 'hkmembersonly' (case-insensitive). Sets isAdmin, which unlocks the
+    filter menu for free, the Force Reset button, and free profile editing.
+    This is a client-side convenience gate only; it grants no server authority.
+  - Worker (authoritative): /api/reset-profile verifies the caller's Telegram
+    initData (HMAC signature + freshness), decodes the Telegram user id from
+    the signed payload, and requires it to equal the ADMIN_ID constant
+    (1231127407). A client-supplied caller_id is never trusted. There is no
+    longer a mass reset-all-underage endpoint; clearing the underage flag is
+    done per-profile through /api/reset-profile.
 
 ================================================================================
 4. DATABASE (Supabase PostgreSQL) — EVERY ITEM AND WHAT IT IS FOR
 ================================================================================
 Migrations in supabase/migrations/, run in order 001 -> 002 -> 003 ->
-004_rls_hardening -> 004_webhook_secret in the Supabase SQL Editor. All are
+004_rls_hardening -> 005_webhook_secret in the Supabase SQL Editor. All are
 idempotent.
 
 --- TABLE: public.profiles (one row per user; id = 'tg_<telegram_id>') ---
@@ -244,14 +247,14 @@ Age is enforced server-side via trigger, not RLS.
                          and the same payment-handling logic as /api/webhook
                          (both routes exist in worker.js).
   GET  /api/messages   — last N flying_messages (limit default 10)
-  POST /api/messages   — post one (text trimmed to 200 chars)
+  POST /api/messages   — AUTHENTICATED: requires valid initData; sender id and
+                         name come from the signed payload (not the body). Text
+                         trimmed to 200 chars.
   GET  /api/raffle     — raffle_state row (defaults if missing)
-  POST /api/reset-profile — ADMIN-ONLY (body caller_id must be 1231127407):
-                         wipes {target_id}'s profile to defaults
-  POST /api/reset-all-underage — ADMIN-ONLY (body caller_id must be 1231127407):
-                         wipes EVERY profile with is_underage=true back to
-                         defaults in one call. Button lives on the admin's own
-                         profile sheet ("Reset all underage").
+  POST /api/reset-profile — ADMIN-ONLY: requires valid initData whose decoded
+                         Telegram id equals ADMIN_ID (1231127407). Wipes
+                         {target_id}'s profile to defaults, including clearing
+                         is_underage. (There is no reset-all-underage endpoint.)
   GET  /api/health, /health — {ok:true, version:'rls-hardened-1.1'}
 
 Purchasable types (ALLOWED_TYPES, all XTR/Stars):
@@ -354,10 +357,11 @@ H. Refresh limiter
      stored in localStorage, no visible countdown.
 
 I. Admin
-   - Admin identified client-side by username (mileschan852 / hkmembersonly).
-   - Force Reset button (🔁) on other users' profiles -> POST /api/reset-profile.
-   - "Reset all underage" button on the admin's own profile sheet ->
-     POST /api/reset-all-underage (mass-wipes every underage profile).
+   - Admin UI unlocked client-side by username (mileschan852 / hkmembersonly).
+   - Force Reset button on other users' profiles -> POST /api/reset-profile,
+     which is authorized server-side by verified initData (decoded Telegram id
+     must equal ADMIN_ID 1231127407). This same reset also clears the target's
+     is_underage flag, so underage profiles are handled one at a time here.
    - Free filter menu and free profile editing.
 
 J. Games & Apps side rail
